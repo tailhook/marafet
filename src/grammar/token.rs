@@ -13,6 +13,7 @@ pub enum TokenType {
     Equals,         // =
     Colon,          // :
     Dot,            // .
+    Dash,           // -
     OpenParen,      // (
     OpenBracket,    // [
     OpenBrace,      // {
@@ -24,6 +25,7 @@ pub enum TokenType {
     Newline,
     Indent,
     Dedent,
+    Eof,
 }
 
 pub type Token<'a> = (TokenType, &'a str, SourcePosition);
@@ -53,6 +55,8 @@ impl TokenType {
             TokenType::Equals => Info::Borrowed("equals"),
             TokenType::Colon => Info::Borrowed("colon"),
             TokenType::Dot => Info::Borrowed("dot"),
+            TokenType::Dash => Info::Borrowed("dash (i.e. minus)"),
+            TokenType::Eof => Info::Borrowed("end of file"),
         }
     }
 }
@@ -64,12 +68,17 @@ impl<'a, I: Stream<Item=Token<'a>>> Parser for TokenParser<I> {
     fn parse_state(&mut self, input: State<I>) -> ParseResult<Token<'a>, I> {
         match input.clone().uncons(|pos, &(_, _, p)| { *pos = p; }) {
             Ok((tok, s)) => {
-                let (typ, _, _) = tok;
+                let (typ, val, pos) = tok;
                 if self.token == typ { Ok((tok, s)) }
                 else {
-                    let errors = vec![Error::Expected(self.token.info())];
+                    let mut errors = vec![
+                        Error::Expected(self.token.info())];
+                    if val.len() > 0 {
+                        errors.insert(0,
+                            Error::Unexpected(val.chars().next().unwrap()));
+                    }
                     Err(Consumed::Empty(
-                        ParseError::from_errors(input.position, errors)))
+                        ParseError::from_errors(pos, errors)))
                 }
             }
             Err(err) => Err(err)

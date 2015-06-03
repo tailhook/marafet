@@ -1,6 +1,8 @@
 css:
-    .offset
-#        margin: 4px
+  .offset
+    text-align: middle
+    text-decoration: none
+  .shit
 #
 #html body:
 #    div.offset

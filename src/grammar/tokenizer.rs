@@ -76,10 +76,50 @@ pub struct Tokenizer<'a> {
     indents: Vec<usize>,
 }
 
-impl<'a> Stream for Tokenizer<'a> {
+impl<'a> Iterator for Tokenizer<'a> {
     type Item = Token<'a>;
-    fn uncons(mut self) -> Result<(Token<'a>, Self), ()> {
+    fn next(&mut self) -> Option<Token<'a>> {
+        let tok = self._next();
+        println!("Next token {:?}", tok);
+        return tok;
+    }
+}
+
+impl<'a> Tokenizer<'a> {
+    pub fn new(val: &'a str) -> Tokenizer<'a> {
+        return Tokenizer {
+            data: val,
+            iter: CodeIter {
+                iter: UnicodeSegmentation::grapheme_indices(val, true),
+                buf: None,
+                grapheme: None,
+                offset: 0,
+                line: 1,
+                column: 1,
+                },
+            braces: vec!(),
+            indents: vec!(0),
+        };
+    }
+    pub fn error_message(&self) -> String {
+        return format!("Unexpected character {:?} at: {}:{}",
+            &self.data[self.iter.offset..][..1],
+            self.iter.line,
+            self.iter.column);
+    }
+    fn _next(&mut self) -> Option<Token<'a>> {
         'outer: loop {
+            match self.iter.peek() {
+                Some((ch, _, _, 1)) if ch != ' ' && self.indents.len() > 1 => {
+                    let level = self.indents.pop().unwrap();
+                    let pos = SourcePosition {
+                        line: self.iter.line,
+                        column: self.iter.column,
+                        };
+                    return Some((TokenType::Dedent, "", pos));
+                }
+                _ => {}
+            }
             match self.iter.next() {
                 Some((ch, off, line, column)) => {
                     let pos = SourcePosition {
@@ -88,7 +128,7 @@ impl<'a> Stream for Tokenizer<'a> {
                         };
                     match ch {
                         '\n' => {
-                            return Ok(((TokenType::Newline, "\n", pos), self));
+                            return Some((TokenType::Newline, "\n", pos));
                         }
                         '('|'{'|'[' => {
                             let typ = match ch {
@@ -97,14 +137,8 @@ impl<'a> Stream for Tokenizer<'a> {
                                 '[' => TokenType::OpenBracket,
                                 _ => unreachable!(),
                             };
-                            let mut nbraces = self.braces;
-                            nbraces.push(ch);
-                            return Ok((
-                                (typ, &self.data[off..off+1], pos),
-                                Tokenizer {
-                                    braces: nbraces,
-                                    .. self
-                                }));
+                            self.braces.push(ch);
+                            return Some((typ, &self.data[off..off+1], pos));
                         }
                         ')'|'}'|']' => {
                             let (typ, val) = match ch {
@@ -113,31 +147,23 @@ impl<'a> Stream for Tokenizer<'a> {
                                 ']' => (TokenType::CloseBracket, ']'),
                                 _ => unreachable!(),
                             };
-                            let mut nbraces = self.braces;
-                            let br = nbraces.pop();
+                            let br = self.braces.pop();
                             if Some(val) == br {
-                                return Ok((
-                                    (typ, &self.data[off..off+1], pos),
-                                    Tokenizer {
-                                        braces: nbraces,
-                                        .. self
-                                    }));
+                                return Some((typ, &self.data[off..off+1], pos));
                             } else {
                                 // TODO(tailhook) how to communicate error?
-                                return Err(());
+                                return None;
                             }
                         }
-                        ':'|'.'|'=' => {
+                        ':'|'.'|'='|'-' => {
                             let typ = match ch {
                                 ':' => TokenType::Colon,
                                 '.' => TokenType::Dot,
                                 '=' => TokenType::Equals,
+                                '-' => TokenType::Dash,
                                 _ => unreachable!(),
                             };
-                            return Ok((
-                                (typ, &self.data[off..off+1], pos),
-                                self,
-                                ));
+                            return Some((typ, &self.data[off..off+1], pos));
                         }
                         '#' => {
                             loop {
@@ -159,6 +185,10 @@ impl<'a> Stream for Tokenizer<'a> {
                                     Some(('\n', off, _, _)) => {
                                         continue 'outer;
                                     }
+                                    Some((' ', _, _, _)) => {
+                                        self.iter.next();
+                                        continue;
+                                    }
                                     Some(('#', _, _, _)) => {
                                         continue 'outer;
                                     }
@@ -171,34 +201,30 @@ impl<'a> Stream for Tokenizer<'a> {
                                         continue 'outer;  // WS at EOF
                                     }
                                 }
-                                self.iter.next();
+                                unreachable!();
                             }
-                            let mut nindents = self.indents;
                             let chunk = &self.data[off..offset];
                             let mut typ;
-                            if indent > nindents[nindents.len()-1] {
-                                nindents.push(indent);
+                            let curindent = *self.indents.last().unwrap();
+                            if indent == curindent {
+                                continue;
+                            } else if indent > curindent {
+                                self.indents.push(indent);
                                 typ = TokenType::Indent;
                             } else {
                                 loop {
-                                    let nindent = nindents.pop().unwrap();
+                                    let nindent = self.indents.pop().unwrap();
                                     if nindent == indent {
-                                        nindents.push(indent);
+                                        self.indents.push(indent);
                                         break;
                                     } else if nindent < indent {
                                         // TODO(tailhook) how to report err?
-                                        return Err(());
+                                        return None;
                                     }
                                 }
                                 typ = TokenType::Dedent;
                             }
-                            return Ok((
-                                (typ, chunk, pos),
-                                Tokenizer {
-                                    indents: nindents,
-                                    .. self
-                                }
-                            ));
+                            return Some((typ, chunk, pos));
                         }
                         ' '|'\t' => {  // Skip whitespace
                             continue;
@@ -226,55 +252,28 @@ impl<'a> Stream for Tokenizer<'a> {
                                 "html" => TokenType::Html,
                                 _ => TokenType::Ident,
                             };
-                            return Ok(((tok, value, pos), self));
+                            return Some((tok, value, pos));
                         }
                         _ => {
-                            return Err(()); // Unexpected character
+                            return None; // Unexpected character
                         }
                     }
                 }
                 None => {
+                    let pos = SourcePosition {
+                        line: self.iter.line,
+                        column: self.iter.column,
+                        };
                     match self.indents.pop() {
-                        Some(level) => {
-                            let pos = SourcePosition {
-                                line: -1,
-                                column: 0,
-                                };
-                            return Ok(((TokenType::Dedent, "", pos), self));
+                        Some(level) if level > 0 => {
+                            return Some((TokenType::Dedent, "", pos));
                         }
-                        None => {
-                            return Err(());
+                        _ => {
+                            return Some((TokenType::Eof, "", pos));
                         }
                     }
                 }
             }
         }
-    }
-}
-
-impl<'a> Tokenizer<'a> {
-    pub fn new(val: &'a str) -> Tokenizer<'a> {
-        return Tokenizer {
-            data: val,
-            iter: CodeIter {
-                iter: UnicodeSegmentation::grapheme_indices(val, true),
-                buf: None,
-                grapheme: None,
-                offset: 0,
-                line: 1,
-                column: 1,
-                },
-            braces: vec!(),
-            indents: vec!(0),
-        };
-    }
-    pub fn end_of_file(&mut self) -> bool {
-        self.iter.peek().is_none()
-    }
-    pub fn error_message(&self) -> String {
-        return format!("Unexpected character {:?} at: {}:{}",
-            &self.data[self.iter.offset..][..1],
-            self.iter.line,
-            self.iter.column);
     }
 }

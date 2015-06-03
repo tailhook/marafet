@@ -5,13 +5,12 @@ extern crate unicode_segmentation;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Read;
+use std::rc::Rc;
 
 use argparse::{ArgumentParser, Parse, ParseOption, Collect, StoreTrue};
-use parser_combinators::{parser, Parser, ParserExt};
-//use parser_combinators::combinator::{Try, Or, many, Many, ParserExt, Map};
+use parser_combinators::{parser, Parser, ParserExt, from_iter};
 
 mod grammar;
-
 
 fn main() {
     let mut source = PathBuf::new();
@@ -40,11 +39,11 @@ fn main() {
     File::open(source).and_then(|mut f| f.read_to_end(&mut buf)).unwrap();
     let body = String::from_utf8(buf).unwrap();
     let (ast, mut tail) = parser(grammar::body)
-        .parse(grammar::Tokenizer::new(&body[..]))
+        .parse(from_iter(grammar::Tokenizer::new(&body[..])))
         .unwrap();  // TODO(tailhook) should check tail?
-    if !tail.end_of_file() {
-        println!("Tokenizer error: {}", tail.error_message());
-    }
+    //if !tail.end_of_file() {
+    //    println!("Tokenizer error: {}", tail.error_message());
+    //}
     println!("AST");
     println!("{:?}", ast);
 }
