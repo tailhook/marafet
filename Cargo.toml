@@ -11,6 +11,7 @@ authors = ["paul@colomiets.name"]
 
 [dependencies]
 parser-combinators = "*"
+unicode-segmentation = "*"
 argparse = "*"
 
 [[bin]]
