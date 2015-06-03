@@ -1,0 +1,20 @@
+[package]
+
+name = "marafet"
+description = "The template to virtual dom preprocessor"
+license = "MIT"
+readme = "README.rst"
+keywords = ["templates", "js", "css"]
+homepage = "http://github.com/tailhook/marafet"
+version = "0.1.0"
+authors = ["paul@colomiets.name"]
+
+[dependencies]
+parser-combinators = "*"
+argparse = "*"
+
+[[bin]]
+name = "marafet"
+path = "src/main.rs"
+
+

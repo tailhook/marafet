@@ -1,0 +1,7 @@
+css:
+    .offset
+#        margin: 4px
+#
+#html body:
+#    div.offset
+#        "Hello World!"

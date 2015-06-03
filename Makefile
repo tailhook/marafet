@@ -1,0 +1,3 @@
+marafet:
+	cargo build
+

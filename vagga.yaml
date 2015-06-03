@@ -1,0 +1,21 @@
+commands:
+
+  make: !Command
+    description: Build cantal binaries and javascript in ubuntu container
+    container: ubuntu
+    run: [make]
+
+containers:
+
+  ubuntu:
+    setup:
+    - !Ubuntu trusty
+    - !UbuntuUniverse ~
+    - !Install [make, checkinstall, wget]
+
+    - !BuildDeps [ca-certificates, build-essential]
+    - !TarInstall
+      url: "http://static.rust-lang.org/dist/rust-1.0.0-x86_64-unknown-linux-gnu.tar.gz"
+      script: "./install.sh --prefix=/usr --components=rustc,cargo"
+    environ:
+      HOME: /work/run
