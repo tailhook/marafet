@@ -6,10 +6,10 @@ use self::token::{Token, lift};
 use self::token::TokenType::{Css, Html, Eof};
 pub use self::tokenizer::Tokenizer;
 
-pub mod token;
+mod token;
 mod tokenizer;
-mod css;
-mod html;
+pub mod css;
+pub mod html;
 
 #[derive(Debug)]
 pub enum Block {

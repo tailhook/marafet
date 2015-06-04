@@ -2,15 +2,18 @@ extern crate argparse;
 extern crate parser_combinators;
 extern crate unicode_segmentation;
 
-use std::path::PathBuf;
-use std::fs::File;
-use std::io::Read;
 use std::rc::Rc;
+use std::fs::File;
+use std::io::{Read, stdout};
+use std::path::PathBuf;
 
 use argparse::{ArgumentParser, Parse, ParseOption, Collect, StoreTrue};
 use parser_combinators::{parser, Parser, ParserExt, from_iter};
 
 mod grammar;
+mod js;
+mod css;
+mod util;
 
 fn main() {
     let mut source = PathBuf::new();
@@ -38,13 +41,27 @@ fn main() {
     let mut buf = Vec::new();
     File::open(source).and_then(|mut f| f.read_to_end(&mut buf)).unwrap();
     let body = String::from_utf8(buf).unwrap();
-    let (ast, mut tail) = parser(grammar::body)
+    let (ast, _) = parser(grammar::body)
         .parse(from_iter(grammar::Tokenizer::new(&body[..])))
         .unwrap();  // TODO(tailhook) should check tail?
-    //if !tail.end_of_file() {
-    //    println!("Tokenizer error: {}", tail.error_message());
-    //}
     println!("AST");
     println!("{:?}", ast);
+
+    for blk in ast.iter() {
+        match blk {
+            &grammar::Block::Css(_, _) => {
+                use std::default::Default;
+                println!("------- CSS -------");
+                css::generate(&mut stdout(), blk, &Default::default()
+                    ).unwrap();
+                println!("----- end css -----");
+            }
+            &grammar::Block::Html(_, _, _) => {
+                println!("------- HTML->JS -------");
+                js::generate(&mut stdout(), blk).unwrap();
+                println!("----- end html->js -----");
+            }
+        }
+    }
 }
 

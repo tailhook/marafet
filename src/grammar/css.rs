@@ -6,17 +6,18 @@ use super::Block;
 use super::token::Token;
 use super::token::TokenType as Tok;
 use super::token::lift;
+use super::super::util::join;
 
 #[derive(Debug)]
 pub struct Rule {
-    selectors: Vec<String>,
-    properties: Vec<(String, String)>,
+    pub selectors: Vec<String>,
+    pub properties: Vec<(String, String)>,
 }
 
 #[derive(Debug)]
 pub struct Param {
-    name: String,
-    default_value: Option<String>,
+    pub name: String,
+    pub default_value: Option<String>,
 }
 
 fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
@@ -28,21 +29,6 @@ fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
                 default_value: opt.map(|x| String::from(x.1)),
             })
     .parse_state(input)
-}
-
-fn join<S1:AsRef<str>, S2:AsRef<str>, I:Iterator<Item=S1>>(mut iter: I, sep: S2)
-    -> String
-{
-    let mut buf = String::new();
-    match iter.next() {
-        Some(x) => buf.push_str(x.as_ref()),
-        None => {}
-    }
-    for i in iter {
-        buf.push_str(sep.as_ref());
-        buf.push_str(i.as_ref());
-    }
-    return buf;
 }
 
 fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
