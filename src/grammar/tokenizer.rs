@@ -128,6 +128,9 @@ impl<'a> Tokenizer<'a> {
                         };
                     match ch {
                         '\n' => {
+                            if column == 1 {
+                                continue;  // skip empty line
+                            }
                             return Some((TokenType::Newline, "\n", pos));
                         }
                         '('|'{'|'[' => {
@@ -183,6 +186,7 @@ impl<'a> Tokenizer<'a> {
                             loop {
                                 match self.iter.peek() {
                                     Some(('\n', off, _, _)) => {
+                                        self.iter.next();  // skip empty line
                                         continue 'outer;
                                     }
                                     Some((' ', _, _, _)) => {
