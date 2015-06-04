@@ -177,8 +177,27 @@ impl<'a> Tokenizer<'a> {
                             }
                             continue;
                         }
-                        '"' => {
-                            unimplemented!();
+                        '"'|'\'' => {
+                            let dlm = ch;
+                            loop {
+                                match self.iter.next() {
+                                    Some((ch, _, _, _)) if ch == dlm => {
+                                        break;
+                                    }
+                                    Some(('\\', _, _, _)) => {
+                                        // any char allowed after slash
+                                        self.iter.next();
+                                    }
+                                    Some(_) => {}
+                                    None => {
+                                        // TODO(tailhook) return error
+                                        break;
+                                    }
+                                }
+                            }
+                            let value = &self.data[off..self.iter.offset+1];
+                            return Some((TokenType::String, value, pos));
+                            continue;
                         }
                         ' ' if column == 1 => {
                             let mut offset = self.data.len();

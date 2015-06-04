@@ -17,5 +17,6 @@ argparse = "*"
 [[bin]]
 name = "marafet"
 path = "src/main.rs"
+rustc-args = "-Z time-passes"
 
 

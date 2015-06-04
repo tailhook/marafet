@@ -6,5 +6,5 @@ css:
 
 
 html body:
-#    div.offset
-#        "Hello World!"
+    div.offset
+        "Hello World!"

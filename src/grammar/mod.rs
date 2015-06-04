@@ -14,7 +14,7 @@ mod html;
 #[derive(Debug)]
 pub enum Block {
     Css(Vec<css::Param>, Vec<css::Rule>),
-    Html(String, Vec<html::Param>, Vec<html::Item>),
+    Html(String, Vec<html::Param>, Vec<html::Statement>),
 }
 
 

@@ -30,6 +30,58 @@ pub enum TokenType {
 
 pub type Token<'a> = (TokenType, &'a str, SourcePosition);
 
+
+pub trait ParseToken {
+    fn into_string(self) -> String;
+    fn unescape(self) -> String;
+}
+
+impl<'a> ParseToken for Token<'a> {
+    fn into_string(self) -> String {
+        return String::from(self.1);
+    }
+    fn unescape(self) -> String {
+        let slice = self.1;
+        let quote = slice.chars().next().unwrap();
+        if quote != '"' && quote != '\'' {
+            panic!("Only string tokens can be unescaped");
+        }
+        let mut result = String::new();
+        let mut iter = slice[1..].chars();
+        loop {
+            let ch = if let Some(ch) = iter.next() { ch } else { break; };
+            match ch {
+                '\\' => {
+                    if let Some(ch) = iter.next() {
+                        match ch {
+                            'x' => unimplemented!(),
+                            '\n' => unimplemented!(),
+                            'r' => result.push('\r'),
+                            'n' => result.push('\n'),
+                            't' => result.push('\t'),
+                            _ => result.push(ch),
+                        }
+                    } else {
+                        panic!("Slash at end of line");
+                    }
+                }
+                '"'|'\'' => {
+                    if quote == ch {
+                        break;
+                    } else {
+                        result.push(ch);
+                    }
+                }
+                _ => {
+                    result.push(ch);
+                }
+            }
+        }
+        assert!(iter.next().is_none());
+        return result;
+    }
+}
+
 pub struct TokenParser<I> {
     token: TokenType,
     ph: PhantomData<I>,
