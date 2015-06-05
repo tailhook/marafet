@@ -21,5 +21,6 @@ pub struct Param {
 pub enum Expression {
     Str(String),
     Object(Vec<(String, Expression)>),
+    List(Vec<Expression>),
 }
 
