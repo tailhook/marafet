@@ -1,10 +1,14 @@
+extern crate parser_combinators;
+extern crate unicode_segmentation;
+extern crate marafet_util as util;
+
 use parser_combinators::primitives::{Stream, State, Parser};
 use parser_combinators::combinator::{many, ParserExt};
-use parser_combinators::{ParseResult, parser};
+use parser_combinators::{ParseResult, parser, from_iter};
 
 use self::token::{Token, lift};
 use self::token::TokenType::{Css, Html, Eof};
-pub use self::tokenizer::Tokenizer;
+use self::tokenizer::Tokenizer;
 
 mod token;
 mod tokenizer;
@@ -22,7 +26,7 @@ pub struct Ast {
     pub blocks: Vec<Block>,
 }
 
-pub fn body<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+fn body<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Ast, I>
 {
     let css = lift(Css).with(parser(css::block));
@@ -32,4 +36,11 @@ pub fn body<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     return blocks.map(|blocks| Ast {
         blocks: blocks,
     }).parse_state(input);
+}
+
+pub fn parse_string(text: &str) -> Result<Ast, String> {
+    parser(body)
+    .parse(from_iter(Tokenizer::new(text)))
+    .map_err(|x| format!("Parse error: {}", x))
+    .map(|(ast, _)| ast)
 }

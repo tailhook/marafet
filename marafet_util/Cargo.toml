@@ -1,0 +1,14 @@
+[package]
+
+name = "marafet_util"
+description = "Super-cool templating library (utilitary parts)"
+license = "MIT"
+readme = "README.rst"
+keywords = ["templates", "js", "css", "html"]
+homepage = "http://github.com/tailhook/marafet"
+version = "0.1.0"
+authors = ["paul@colomiets.name"]
+
+[lib]
+name = "marafet_util"
+path = "src/lib.rs"

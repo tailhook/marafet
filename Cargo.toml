@@ -14,8 +14,18 @@ parser-combinators = "*"
 unicode-segmentation = "*"
 argparse = "*"
 
+[dependencies.marafet_util]
+path = "marafet_util"
+
+[dependencies.marafet_parser]
+path = "marafet_parser"
+
+[dependencies.marafet_css]
+path = "marafet_css"
+
+[dependencies.marafet_es5citojs]
+path = "marafet_es5citojs"
+
 [[bin]]
 name = "marafet"
 path = "src/main.rs"
-
-

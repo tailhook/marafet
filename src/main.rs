@@ -1,19 +1,15 @@
 extern crate argparse;
-extern crate parser_combinators;
-extern crate unicode_segmentation;
+
+extern crate marafet_parser as parser;
+extern crate marafet_css as css;
+extern crate marafet_es5citojs as es5citojs;
 
 use std::fs::File;
 use std::io::{Read, stdout};
 use std::path::PathBuf;
 
 use argparse::{ArgumentParser, Parse, ParseOption, Collect, StoreTrue};
-use parser_combinators::{parser, Parser, ParserExt, from_iter};
 
-mod grammar;
-mod visitors;
-mod js;
-mod css;
-mod util;
 
 fn main() {
     let mut source = PathBuf::new();
@@ -48,36 +44,15 @@ fn main() {
     let mut buf = Vec::new();
     File::open(&source).and_then(|mut f| f.read_to_end(&mut buf)).unwrap();
     let body = String::from_utf8(buf).unwrap();
-    let (ast, _) = parser(grammar::body)
-        .parse(from_iter(grammar::Tokenizer::new(&body[..])))
-        .unwrap();  // TODO(tailhook) should check tail?
+    let ast = parser::parse_string(&body[..]).unwrap();
 
-    println!("--- Initial Ast ---");
+    println!("--- Ast ---");
     println!("{:?}", ast);
 
-    let ast = visitors::add_block_name(ast,
-        &block_name.unwrap_or(
-            String::from(source.file_stem().unwrap().to_str().unwrap())
-        )[..]);
 
-    println!("--- Transformed Ast --");
-    println!("{:?}", ast);
-
-    for blk in ast.blocks.iter() {
-        match blk {
-            &grammar::Block::Css(_, _) => {
-                use std::default::Default;
-                println!("------- CSS -------");
-                css::generate(&mut stdout(), blk, &Default::default()
-                    ).unwrap();
-                println!("----- end css -----");
-            }
-            &grammar::Block::Html(_, _, _) => {
-                println!("------- HTML->JS -------");
-                js::generate(&mut stdout(), blk).unwrap();
-                println!("----- end html->js -----");
-            }
-        }
-    }
+    println!("--- Css ---");
+    css::generate(&mut stdout(), &ast, &Default::default()).unwrap();
+    println!("--- JS ---");
+    es5citojs::generate(&mut stdout(), &ast).unwrap();
 }
 

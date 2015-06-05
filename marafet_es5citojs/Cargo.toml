@@ -1,0 +1,17 @@
+[package]
+
+name = "marafet_es5citojs"
+description = "Super-cool templating library (javascript compiler to ES5 and cito.js)"
+license = "MIT"
+readme = "README.rst"
+keywords = ["templates", "js", "css", "html"]
+homepage = "http://github.com/tailhook/marafet"
+version = "0.1.0"
+authors = ["paul@colomiets.name"]
+
+[lib]
+name = "marafet_es5citojs"
+path = "src/lib.rs"
+
+[dependencies.marafet_parser]
+path = "../marafet_parser"

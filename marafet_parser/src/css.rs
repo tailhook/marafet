@@ -6,7 +6,7 @@ use super::Block;
 use super::token::{Token, ParseToken};
 use super::token::TokenType as Tok;
 use super::token::lift;
-use super::super::util::join;
+use util::join;
 
 #[derive(Debug)]
 pub struct Selector {
