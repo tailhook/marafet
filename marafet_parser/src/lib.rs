@@ -15,13 +15,13 @@ mod tokenizer;
 pub mod css;
 pub mod html;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Block {
     Css(Vec<css::Param>, Vec<css::Rule>),
     Html(String, Vec<html::Param>, Vec<html::Statement>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ast {
     pub blocks: Vec<Block>,
 }

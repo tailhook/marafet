@@ -8,20 +8,20 @@ use super::token::TokenType as Tok;
 use super::token::lift;
 use util::join;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Selector {
     pub element: Option<String>,
     pub classes: Vec<String>,
     // TODO(tailhook) implement other selectors
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Rule {
     pub selectors: Vec<Selector>,
     pub properties: Vec<(String, String)>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Param {
     pub name: String,
     pub default_value: Option<String>,

@@ -8,13 +8,13 @@ use super::token::TokenType as Tok;
 use super::token::lift;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Param {
     name: String,
     default_value: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Element {
         name: String,
