@@ -49,9 +49,15 @@ fn main() {
     println!("--- Ast ---");
     println!("{:?}", ast);
 
+    let block_name = block_name.unwrap_or(
+            String::from(source.file_stem().unwrap().to_str().unwrap()));
+
 
     println!("--- Css ---");
-    css::generate(&mut stdout(), &ast, &Default::default()).unwrap();
+    css::generate(&mut stdout(), &ast, &css::Settings {
+        block_name: &block_name,
+        vars: &Default::default(),
+        }).unwrap();
     println!("--- JS ---");
     es5citojs::generate(&mut stdout(), &ast).unwrap();
 }
