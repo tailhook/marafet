@@ -2,9 +2,11 @@ css:
   .offset
     text-align: middle
     text-decoration: none
-  .shit
-
+  code
+    font-family: consolas
 
 html body:
     div.offset
         "Hello World!"
+    code
+        "print \"Hello\""

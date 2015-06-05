@@ -17,13 +17,19 @@ pub enum Block {
     Html(String, Vec<html::Param>, Vec<html::Statement>),
 }
 
+#[derive(Debug)]
+pub struct Ast {
+    pub blocks: Vec<Block>,
+}
 
 pub fn body<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Vec<Block>, I>
+    -> ParseResult<Ast, I>
 {
     let css = lift(Css).with(parser(css::block));
     let html = lift(Html).with(parser(html::block));
     let block = css.or(html);
     let mut blocks = many::<Vec<_>, _>(block).skip(lift(Eof));
-    return blocks.parse_state(input);
+    return blocks.map(|blocks| Ast {
+        blocks: blocks,
+    }).parse_state(input);
 }

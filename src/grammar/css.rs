@@ -3,14 +3,21 @@ use parser_combinators::{ParseResult, parser};
 use parser_combinators::combinator::{optional, ParserExt, sep_by, many, many1};
 
 use super::Block;
-use super::token::Token;
+use super::token::{Token, ParseToken};
 use super::token::TokenType as Tok;
 use super::token::lift;
 use super::super::util::join;
 
 #[derive(Debug)]
+pub struct Selector {
+    pub element: Option<String>,
+    pub classes: Vec<String>,
+    // TODO(tailhook) implement other selectors
+}
+
+#[derive(Debug)]
 pub struct Rule {
-    pub selectors: Vec<String>,
+    pub selectors: Vec<Selector>,
     pub properties: Vec<(String, String)>,
 }
 
@@ -51,11 +58,23 @@ fn property_value<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
+fn selector<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Selector, I>
+{
+    optional(lift(Tok::Ident).map(ParseToken::into_string))
+        .and(many::<Vec<_>, _>(lift(Tok::Dot).with(parser(dash_name))))
+    .map(|(element, classes)| Selector {
+        element: element,
+        classes: classes,
+    })
+    .parse_state(input)
+}
+
 fn rule<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Rule, I>
 {
     sep_by::<Vec<_>, _, _>(
-            many1::<Vec<_>, _>(lift(Tok::Dot).and(parser(dash_name))),
+            parser(selector),
             lift(Tok::Comma),
         ).skip(lift(Tok::Newline))
     .and(optional(
@@ -70,13 +89,7 @@ fn rule<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     ))
     .map(|(selectors, properties)| {
         Rule {
-            selectors: selectors.into_iter()
-                .map(|vec| join(
-                    vec.into_iter()
-                    .map(|((_, marker, _), name)|
-                         String::from(marker)+name.as_ref()),
-                    ""))
-                .collect(),
+            selectors: selectors,
             properties: properties.unwrap_or(vec!())
                 .into_iter()
                 .map(|(key, val)| (key, val.unwrap_or(String::new())))
