@@ -59,6 +59,8 @@ fn main() {
         vars: &Default::default(),
         }).unwrap();
     println!("--- JS ---");
-    es5citojs::generate(&mut stdout(), &ast).unwrap();
+    es5citojs::generate(&mut stdout(), &ast, &es5citojs::Settings {
+        block_name: &block_name,
+    }).unwrap();
 }
 

@@ -10,8 +10,8 @@ use super::token::lift;
 
 #[derive(Debug, Clone)]
 pub struct Param {
-    name: String,
-    default_value: Option<String>,
+    pub name: String,
+    pub default_value: Option<String>,
 }
 
 #[derive(Debug, Clone)]

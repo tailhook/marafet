@@ -13,5 +13,8 @@ authors = ["paul@colomiets.name"]
 name = "marafet_es5citojs"
 path = "src/lib.rs"
 
+[dependencies.marafet_util]
+path = "../marafet_util"
+
 [dependencies.marafet_parser]
 path = "../marafet_parser"

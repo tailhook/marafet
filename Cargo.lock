@@ -29,6 +29,7 @@ name = "marafet_es5citojs"
 version = "0.1.0"
 dependencies = [
  "marafet_parser 0.1.0",
+ "marafet_util 0.1.0",
 ]
 
 [[package]]

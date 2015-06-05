@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
-use super::super::grammar::Ast;
-use super::super::grammar::Block;
+use parser::{Ast, Block};
 
 
 pub fn visitor(ast: &Ast) -> HashSet<String> {
