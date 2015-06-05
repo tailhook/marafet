@@ -20,5 +20,6 @@ pub struct Param {
 #[derive(Clone)]
 pub enum Expression {
     Str(String),
+    Object(Vec<(String, Expression)>),
 }
 

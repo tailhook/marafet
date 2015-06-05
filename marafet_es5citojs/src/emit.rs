@@ -20,7 +20,19 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     fn emit_expression(&mut self, expr: &Expression, indent: u32)
         -> Result<()>
     {
-        try!(self.buf.write_all(b"<expr>"));
+        match expr {
+            &Expression::Str(ref s) => {
+                try!(self.buf.write_all(b"\""));
+                for ch in s.chars() {
+                    try!(self.buf.write_all(
+                        ch.escape_default().collect::<String>().as_bytes()));
+                }
+                try!(self.buf.write_all(b"\""));
+            }
+            &Expression::Object(ref pairs) => {
+                unimplemented!();
+            }
+        }
         Ok(())
     }
     fn emit_statements(&mut self, stmts: &Vec<Statement>, indent: u32)
