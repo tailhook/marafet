@@ -146,8 +146,8 @@ impl<'a> Tokenizer<'a> {
                         ')'|'}'|']' => {
                             let (typ, val) = match ch {
                                 ')' => (TokenType::CloseParen, '('),
-                                '}' => (TokenType::CloseBrace, '}'),
-                                ']' => (TokenType::CloseBracket, ']'),
+                                '}' => (TokenType::CloseBrace, '{'),
+                                ']' => (TokenType::CloseBracket, '['),
                                 _ => unreachable!(),
                             };
                             let br = self.braces.pop();
@@ -158,12 +158,13 @@ impl<'a> Tokenizer<'a> {
                                 return None;
                             }
                         }
-                        ':'|'.'|'='|'-' => {
+                        ':'|'.'|'='|'-'|',' => {
                             let typ = match ch {
                                 ':' => TokenType::Colon,
                                 '.' => TokenType::Dot,
                                 '=' => TokenType::Equals,
                                 '-' => TokenType::Dash,
+                                ',' => TokenType::Comma,
                                 _ => unreachable!(),
                             };
                             return Some((typ, &self.data[off..off+1], pos));
@@ -252,13 +253,14 @@ impl<'a> Tokenizer<'a> {
                         ' '|'\t' => {  // Skip whitespace
                             continue;
                         }
-                        'a'...'z'|'A'...'Z' => {
+                        'a'...'z'|'A'...'Z'|'_' => {
                             let mut offset = self.data.len();
                             loop {
                                 match self.iter.peek() {
                                     Some((x, off, _, _)) => {
                                         match x {
-                                            'a'...'z'|'A'...'Z'|'0'...'9' => {}
+                                            'a'...'z'|'A'...'Z'|'0'...'9'|'_'
+                                            => {}
                                             _ => {
                                                 offset = off;
                                                 break;
@@ -273,6 +275,14 @@ impl<'a> Tokenizer<'a> {
                             let tok = match value {
                                 "css" => TokenType::Css,
                                 "html" => TokenType::Html,
+                                "import" => TokenType::Import,
+                                "from" => TokenType::From,
+                                "if" => TokenType::If,
+                                "for" => TokenType::For,
+                                "in" => TokenType::In,
+                                "of" => TokenType::Of,
+                                "as" => TokenType::As,
+                                "else" => TokenType::Else,
                                 _ => TokenType::Ident,
                             };
                             return Some((tok, value, pos));

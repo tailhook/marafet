@@ -9,6 +9,15 @@ use parser_combinators::primitives::{ParseResult, ParseError, Error, Consumed};
 pub enum TokenType {
     Css,
     Html,
+    Import,
+    From,
+    If,
+    For,
+    In,
+    Of,
+    As,
+    Else,
+
     Comma,          // ,
     Equals,         // =
     Colon,          // :
@@ -109,6 +118,14 @@ impl TokenType {
             TokenType::Dot => Info::Borrowed("dot"),
             TokenType::Dash => Info::Borrowed("dash (i.e. minus)"),
             TokenType::Eof => Info::Borrowed("end of file"),
+            TokenType::Import => Info::Borrowed("import"),
+            TokenType::From => Info::Borrowed("from"),
+            TokenType::If => Info::Borrowed("if"),
+            TokenType::For => Info::Borrowed("for"),
+            TokenType::In => Info::Borrowed("in"),
+            TokenType::Of => Info::Borrowed("of"),
+            TokenType::As => Info::Borrowed("as"),
+            TokenType::Else => Info::Borrowed("else"),
         }
     }
 }
