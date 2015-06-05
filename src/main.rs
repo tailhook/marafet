@@ -13,6 +13,7 @@ use argparse::{ArgumentParser, Parse, ParseOption, Collect, StoreTrue};
 
 fn main() {
     let mut source = PathBuf::new();
+    let mut use_amd = false;
     let mut output_js = None::<PathBuf>;
     let mut output_css = None::<PathBuf>;
     let mut block_name = None::<String>;
@@ -28,6 +29,8 @@ fn main() {
             .add_option(&["--js"], ParseOption, "Output JS file");
         ap.refer(&mut output_css)
             .add_option(&["--css"], ParseOption, "Output CSS file");
+        ap.refer(&mut use_amd)
+            .add_option(&["--amd"], StoreTrue, "Output AMD module");
         ap.refer(&mut block_name)
             .add_option(&["--block-name"], ParseOption,
                 "Set block name (this is a name of CSS class that will be \
@@ -61,6 +64,7 @@ fn main() {
     println!("--- JS ---");
     es5citojs::generate(&mut stdout(), &ast, &es5citojs::Settings {
         block_name: &block_name,
+        use_amd: use_amd,
     }).unwrap();
 }
 

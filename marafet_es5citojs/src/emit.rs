@@ -64,6 +64,33 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 }
                 try!(self.buf.write_all(b"]"));
             }
+            &Expression::Name(ref s) => {
+                try!(write!(self.buf, "{}", s));
+            }
+            &Expression::Attr(ref parent, ref attr) => {
+                try!(self.emit_expression(parent, indent));
+                try!(write!(self.buf, ".{}", attr));
+            }
+            &Expression::Call(ref parent, ref args) => {
+                try!(self.emit_expression(parent, indent));
+                try!(self.buf.write_all(b"("));
+                if args.len() > 0 {
+                    try!(self.emit_expression(&args[0], indent));
+                    for i in args[1..].iter() {
+                        try!(self.buf.write_all(b", "));
+                        try!(self.emit_expression(i, indent));
+                    }
+                }
+                try!(self.buf.write_all(b")"));
+            }
+            &Expression::Function(ref name, ref params, ref body) => {
+                write!(self.buf, "function {name}({params}) {{\n",
+                    name=name.as_ref().unwrap_or(&String::from("")),
+                    params=join(params.iter().map(|x| &x.name), ", "));
+                // TODO(tailhook) default values
+                try!(self.emit_statements(&body, indent));
+                try!(self.buf.write_all(b"}"));
+            }
         }
         Ok(())
     }
@@ -81,8 +108,14 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 &Statement::Return(ref expr) => {
                     try!(self.write_indent(indent));
                     try!(self.buf.write_all(b"return "));
-                    self.emit_expression(expr, nindent);
-                    try!(self.buf.write_all(b"\n"));
+                    try!(self.emit_expression(expr, nindent));
+                    try!(self.buf.write_all(b";\n"));
+                }
+                &Statement::Var(ref name, ref expr) => {
+                    try!(self.write_indent(indent));
+                    write!(self.buf, "var {} = ", name);
+                    try!(self.emit_expression(expr, nindent));
+                    try!(self.buf.write_all(b";\n"));
                 }
                 &Statement::Function(ref name, ref params, ref body) => {
                     try!(self.write_indent(indent));
@@ -91,6 +124,7 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                         params=join(params.iter().map(|x| &x.name), ", "));
                     // TODO(tailhook) default values
                     try!(self.emit_statements(&body, nindent));
+                    try!(self.write_indent(indent));
                     try!(self.buf.write_all(b"}\n"));
                 }
             }

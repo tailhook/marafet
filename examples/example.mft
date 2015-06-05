@@ -10,7 +10,7 @@ css:
   code
     font-family: consolas
 
-html body():
+html body:
     div.offset
         "Hello World!"
     code

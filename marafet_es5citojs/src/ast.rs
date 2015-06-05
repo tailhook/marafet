@@ -8,6 +8,7 @@ pub enum Statement {
     Expr(Expression),
     Return(Expression),
     Function(String, Vec<Param>, Vec<Statement>),
+    Var(String, Expression),
 }
 
 
@@ -22,5 +23,9 @@ pub enum Expression {
     Str(String),
     Object(Vec<(String, Expression)>),
     List(Vec<Expression>),
+    Name(String),
+    Attr(Box<Expression>, String),
+    Call(Box<Expression>, Vec<Expression>),
+    Function(Option<String>, Vec<Param>, Vec<Statement>),
 }
 

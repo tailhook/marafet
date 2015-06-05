@@ -13,10 +13,12 @@ mod bare_elements;
 mod ast;
 mod emit;
 mod code;
+mod amd;
 
 
 pub struct Settings<'a> {
     pub block_name: &'a String,
+    pub use_amd: bool,
 }
 
 struct Generator<'a, W: 'a> {
@@ -24,6 +26,7 @@ struct Generator<'a, W: 'a> {
     indent: u32,
     bare_element_names: HashSet<String>,
     buf: &'a mut W,
+    use_amd: bool,
 }
 
 pub fn generate<W>(buf: &mut W, ast: &Ast, settings: &Settings) -> Result<()>
@@ -31,11 +34,15 @@ pub fn generate<W>(buf: &mut W, ast: &Ast, settings: &Settings) -> Result<()>
 {
     let mut gen = Generator {
         block_name: settings.block_name,
+        use_amd: settings.use_amd,
         indent: 4,  // TODO(tailhook) allow customize
         bare_element_names: bare_elements::visitor(ast),
         buf: buf,
     };
-    let code = gen.code(ast);
+    let mut code = gen.code(ast);
+    if gen.use_amd {
+        code = gen.wrap_amd(code, ast);
+    }
     // TODO(tailhook) optimize
     gen.emit(&code);
     Ok(())
