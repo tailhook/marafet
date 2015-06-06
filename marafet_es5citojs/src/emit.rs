@@ -12,7 +12,7 @@ pub trait Emit {
 impl<'a, W:Write+'a> Generator<'a, W> {
     fn write_indent(&mut self, indent: u32) -> Result<()> {
         // TODO(tailhook) Is there a beter way ?
-        for i in 0..indent {
+        for _ in 0..indent {
             try!(self.buf.write_all(b" "));
         }
         Ok(())
@@ -84,9 +84,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 try!(self.buf.write_all(b")"));
             }
             &Expression::Function(ref name, ref params, ref body) => {
-                write!(self.buf, "function {name}({params}) {{\n",
+                try!(write!(self.buf, "function {name}({params}) {{\n",
                     name=name.as_ref().unwrap_or(&String::from("")),
-                    params=join(params.iter().map(|x| &x.name), ", "));
+                    params=join(params.iter().map(|x| &x.name), ", ")));
                 // TODO(tailhook) default values
                 try!(self.emit_statements(&body, indent));
                 try!(self.buf.write_all(b"}"));
@@ -102,7 +102,7 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             match stmt {
                 &Statement::Expr(ref expr) => {
                     try!(self.write_indent(indent));
-                    self.emit_expression(expr, nindent);
+                    try!(self.emit_expression(expr, nindent));
                     try!(self.buf.write_all(b"\n"));
                 }
                 &Statement::Return(ref expr) => {
@@ -113,15 +113,15 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 }
                 &Statement::Var(ref name, ref expr) => {
                     try!(self.write_indent(indent));
-                    write!(self.buf, "var {} = ", name);
+                    try!(write!(self.buf, "var {} = ", name));
                     try!(self.emit_expression(expr, nindent));
                     try!(self.buf.write_all(b";\n"));
                 }
                 &Statement::Function(ref name, ref params, ref body) => {
                     try!(self.write_indent(indent));
-                    write!(self.buf, "function {name}({params}) {{\n",
+                    try!(write!(self.buf, "function {name}({params}) {{\n",
                         name=name,
-                        params=join(params.iter().map(|x| &x.name), ", "));
+                        params=join(params.iter().map(|x| &x.name), ", ")));
                     // TODO(tailhook) default values
                     try!(self.emit_statements(&body, nindent));
                     try!(self.write_indent(indent));

@@ -20,6 +20,7 @@ fn main() {
     let mut block_name = None::<String>;
     let mut vars = Vec::<String>::new();
     let mut print_ast = false;
+    let mut css_load = false;
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("Compiles .mft file to a CSS and/or JS file");
@@ -45,6 +46,9 @@ fn main() {
             .add_option(&["--css-var"], Collect, "Set CSS variable");
         ap.refer(&mut print_ast)
             .add_option(&["--print-ast"], StoreTrue, "Print AST to stdout");
+        ap.refer(&mut css_load)
+            .add_option(&["--auto-load-css"], StoreTrue,
+                "Insert css load code to the Javascript code");
         ap.parse_args_or_exit();
     }
 
@@ -66,8 +70,19 @@ fn main() {
         vars: &Default::default(),
         }).unwrap();
     println!("--- JS ---");
+    let css_text = if css_load {
+        let mut buf = Vec::new();
+        css::generate(&mut buf, &ast, &css::Settings {
+            block_name: &block_name,
+            vars: &Default::default(),
+            }).unwrap();
+        Some(String::from_utf8(buf).unwrap())
+    } else {
+        None
+    };
     es5citojs::generate(&mut stdout(), &ast, &es5citojs::Settings {
         block_name: &block_name[..],
+        css_text: css_text.as_ref().map(|x| &x[..]),
         use_amd: use_amd,
         amd_name: amd_name.as_ref().map(|x| &x[..]).unwrap_or(
             source.with_extension("").to_str().unwrap()),

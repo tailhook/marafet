@@ -1,4 +1,4 @@
-use std::io::{Write, Result};
+use std::io::{Write};
 
 use parser::html;
 use parser::html::Statement::{Element, Text};
@@ -27,8 +27,7 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     }
     fn element(&self, st: &html::Statement) -> Expression {
         match st {
-            &Element { name: ref name, classes: ref classes, body: ref body }
-            => {
+            &Element { ref name, ref classes, ref body } => {
                 if classes.len() == 0 && body.len() == 0 {
                     Expression::Object(vec![
                         (String::from("tag"), Expression::Str(name.clone())),
@@ -59,11 +58,6 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 )]);
         }
     }
-}
-
-
-impl<'a, W:Write+'a> Generator<'a, W> {
-
     pub fn code(&self, ast: &Ast) -> Code {
         let mut stmt = vec!();
         for block in ast.blocks.iter() {

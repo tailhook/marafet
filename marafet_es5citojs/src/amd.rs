@@ -1,4 +1,4 @@
-use std::io::{Write, Result};
+use std::io::{Write};
 use std::collections::HashMap;
 
 use parser::{Ast, Block};
