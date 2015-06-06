@@ -1,7 +1,7 @@
 use std::str::{Chars};
 use std::iter::Peekable;
 
-use parser_combinators::primitives::{Stream, SourcePosition};
+use parser_combinators::primitives::{SourcePosition};
 use unicode_segmentation::{UnicodeSegmentation, GraphemeIndices};
 
 use super::token::{Token, TokenType};
@@ -57,7 +57,7 @@ impl <'a> CodeIter<'a> {
             self.grapheme = None;
         }
         match self.iter.next() {
-            Some((offset, grapheme)) => {
+            Some((_, grapheme)) => {
                 self.grapheme = Some(grapheme);
                 self.buf = Some(grapheme.chars().peekable());
                 self.peek()
@@ -101,17 +101,10 @@ impl<'a> Tokenizer<'a> {
             indents: vec!(0),
         };
     }
-    pub fn error_message(&self) -> String {
-        return format!("Unexpected character {:?} at: {}:{}",
-            &self.data[self.iter.offset..][..1],
-            self.iter.line,
-            self.iter.column);
-    }
     fn _next(&mut self) -> Option<Token<'a>> {
         'outer: loop {
             match self.iter.peek() {
                 Some((ch, _, _, 1)) if ch != ' ' && self.indents.len() > 1 => {
-                    let level = self.indents.pop().unwrap();
                     let pos = SourcePosition {
                         line: self.iter.line,
                         column: self.iter.column,
@@ -198,14 +191,13 @@ impl<'a> Tokenizer<'a> {
                             }
                             let value = &self.data[off..self.iter.offset+1];
                             return Some((TokenType::String, value, pos));
-                            continue;
                         }
                         ' ' if column == 1 => {
-                            let mut offset = self.data.len();
-                            let mut indent = 0;
+                            let mut offset;
+                            let mut indent;
                             loop {
                                 match self.iter.peek() {
-                                    Some(('\n', off, _, _)) => {
+                                    Some(('\n', _, _, _)) => {
                                         self.iter.next();  // skip empty line
                                         continue 'outer;
                                     }
@@ -225,7 +217,6 @@ impl<'a> Tokenizer<'a> {
                                         continue 'outer;  // WS at EOF
                                     }
                                 }
-                                unreachable!();
                             }
                             let chunk = &self.data[off..offset];
                             let mut typ;

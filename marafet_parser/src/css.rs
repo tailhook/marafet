@@ -1,6 +1,6 @@
 use parser_combinators::primitives::{Stream, State, Parser};
 use parser_combinators::{ParseResult, parser};
-use parser_combinators::combinator::{optional, ParserExt, sep_by, many, many1};
+use parser_combinators::combinator::{optional, ParserExt, sep_by, many};
 
 use super::Block;
 use super::token::{Token, ParseToken};

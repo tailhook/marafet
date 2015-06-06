@@ -65,7 +65,7 @@ fn body<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     let html = lift(Html).with(parser(html::block));
     let import = lift(Import).with(parser(import));
     let block = css.or(html).or(import);
-    let mut blocks = many::<Vec<_>, _>(block).skip(lift(Eof));
+    let blocks = many::<Vec<_>, _>(block).skip(lift(Eof));
     return blocks.map(|blocks| Ast {
         blocks: blocks,
     }).parse_state(input);
