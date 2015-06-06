@@ -14,12 +14,14 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     fn attrs(&self, name: &String, cls: &Vec<String>) -> Expression {
         let mut attrs = vec!();
         if cls.len() > 0 {
-            let nclasses = vec![self.block_name].into_iter().chain(cls.iter());
+            let namestr = &self.block_name.to_string();
+            let nclasses = vec![namestr].into_iter()
+                .chain(cls.iter());
             attrs.push((String::from("class"),
                         Expression::Str(join(nclasses, " "))));
         } else if self.bare_element_names.contains(name) {
             attrs.push((String::from("class"),
-                Expression::Str(self.block_name.clone())));
+                Expression::Str(self.block_name.to_string())));
         }
         Expression::Object(attrs)
     }

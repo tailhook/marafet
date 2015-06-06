@@ -36,7 +36,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             statements: vec![
                 Expr(Call(
                     Box::new(Name(String::from("define"))),
-                    vec![Function(None, vec!(), statements)])),
+                    vec![
+                    Str(self.amd_name.to_string()),
+                    Function(None, vec!(), statements)])),
             ],
         };
     }

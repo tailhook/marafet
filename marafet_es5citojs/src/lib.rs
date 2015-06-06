@@ -17,16 +17,18 @@ mod amd;
 
 
 pub struct Settings<'a> {
-    pub block_name: &'a String,
+    pub block_name: &'a str,
     pub use_amd: bool,
+    pub amd_name: &'a str,
 }
 
 struct Generator<'a, W: 'a> {
-    block_name: &'a String,
+    block_name: &'a str,
     indent: u32,
     bare_element_names: HashSet<String>,
     buf: &'a mut W,
     use_amd: bool,
+    amd_name: &'a str,
 }
 
 pub fn generate<W>(buf: &mut W, ast: &Ast, settings: &Settings) -> Result<()>
@@ -35,6 +37,7 @@ pub fn generate<W>(buf: &mut W, ast: &Ast, settings: &Settings) -> Result<()>
     let mut gen = Generator {
         block_name: settings.block_name,
         use_amd: settings.use_amd,
+        amd_name: &settings.amd_name,
         indent: 4,  // TODO(tailhook) allow customize
         bare_element_names: bare_elements::visitor(ast),
         buf: buf,
