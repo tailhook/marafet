@@ -105,6 +105,7 @@ impl<'a> Tokenizer<'a> {
         'outer: loop {
             match self.iter.peek() {
                 Some((ch, _, _, 1)) if ch != ' ' && self.indents.len() > 1 => {
+                    self.indents.pop().unwrap();
                     let pos = SourcePosition {
                         line: self.iter.line,
                         column: self.iter.column,
