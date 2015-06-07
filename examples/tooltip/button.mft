@@ -1,0 +1,10 @@
+css:
+  .tooltip
+    background-color: yellow
+
+
+html render:
+  div
+    button
+    .tooltip
+      "hello"
