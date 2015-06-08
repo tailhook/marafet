@@ -5,8 +5,9 @@ extern crate marafet_css as css;
 extern crate marafet_es5citojs as es5citojs;
 
 use std::fs::File;
-use std::io::{Read, stdout};
+use std::io::{Read, BufWriter};
 use std::path::PathBuf;
+use std::process::exit;
 
 use argparse::{ArgumentParser, Parse, ParseOption, Collect, StoreTrue};
 
@@ -52,40 +53,59 @@ fn main() {
         ap.parse_args_or_exit();
     }
 
+    let block_name = block_name.unwrap_or(
+            String::from(source.file_stem().unwrap().to_str().unwrap()));
+
     let mut buf = Vec::new();
     File::open(&source).and_then(|mut f| f.read_to_end(&mut buf)).unwrap();
     let body = String::from_utf8(buf).unwrap();
     let ast = parser::parse_string(&body[..]).unwrap();
 
-    println!("--- Ast ---");
-    println!("{:?}", ast);
+    if print_ast {
+        println!("--- Ast ---");
+        println!("{:?}", ast);
+    }
 
-    let block_name = block_name.unwrap_or(
-            String::from(source.file_stem().unwrap().to_str().unwrap()));
+    // println!("--- Css ---");
+    // css::generate(&mut stdout(), &ast, &css::Settings {
+    //     block_name: &block_name,
+    //     vars: &Default::default(),
+    //     }).unwrap();
 
-
-    println!("--- Css ---");
-    css::generate(&mut stdout(), &ast, &css::Settings {
-        block_name: &block_name,
-        vars: &Default::default(),
-        }).unwrap();
-    println!("--- JS ---");
     let css_text = if css_load {
         let mut buf = Vec::new();
         css::generate(&mut buf, &ast, &css::Settings {
             block_name: &block_name,
             vars: &Default::default(),
             }).unwrap();
-        Some(String::from_utf8(buf).unwrap())
+        let string = String::from_utf8(buf).unwrap();
+        if print_ast {
+            println!("--- CSS ---");
+            println!("{}", string);
+        }
+        Some(string)
     } else {
         None
     };
-    es5citojs::generate(&mut stdout(), &ast, &es5citojs::Settings {
-        block_name: &block_name[..],
-        css_text: css_text.as_ref().map(|x| &x[..]),
-        use_amd: use_amd,
-        amd_name: amd_name.as_ref().map(|x| &x[..]).unwrap_or(
-            source.with_extension("").to_str().unwrap()),
-    }).unwrap();
+    if let Some(filename) = output_js {
+        let mut file = match File::create(&filename).map(BufWriter::new) {
+            Ok(f) => f,
+            Err(e) => {
+                println!("Error opening file {:?}: {}", filename, e);
+                exit(2);
+            }
+        };
+        let res = es5citojs::generate(&mut file, &ast, &es5citojs::Settings {
+            block_name: &block_name[..],
+            css_text: css_text.as_ref().map(|x| &x[..]),
+            use_amd: use_amd,
+            amd_name: amd_name.as_ref().map(|x| &x[..]).unwrap_or(
+                source.with_extension("").to_str().unwrap()),
+        });
+        if let Err(err) = res {
+            println!("{}", err);
+            exit(1);
+        }
+    }
 }
 
