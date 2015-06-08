@@ -45,7 +45,7 @@ pub enum Statement {
     Text(String),
     Store(String, Expression),
     Link(Vec<Link>),
-    Condition(Vec<(Expression, Statement)>, Option<Box<Statement>>),
+    Condition(Vec<(Expression, Vec<Statement>)>, Option<Vec<Statement>>),
 }
 
 
@@ -95,9 +95,7 @@ fn element<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     parser(element_start)
     .and(parser(attributes))
     .skip(lift(Tok::Newline))
-    .and(optional(lift(Tok::Indent)
-        .with(many1(parser(statement)))
-        .skip(lift(Tok::Dedent))))
+    .and(parser(chunk))
     .map(|(((name, classes), opt_attributes), opt_body)| Statement::Element {
         name: name,
         classes: classes,
@@ -213,8 +211,32 @@ fn condition<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     lift(Tok::If)
     .with(parser(expression))
-    .skip(Tok::Colon)
-    .skip(Tok::Newline)
+    .skip(lift(Tok::Colon))
+    .skip(lift(Tok::Newline))
+    .and(parser(chunk))
+    .and(optional(many::<Vec<_>,_>(
+        lift(Tok::Elif)
+        .with(parser(expression))
+        .skip(lift(Tok::Colon))
+        .skip(lift(Tok::Newline))
+        .and(parser(chunk))
+        )))
+    .and(optional(lift(Tok::Else)
+        .skip(lift(Tok::Colon))
+        .skip(lift(Tok::Newline))
+        .with(parser(chunk))
+        ))
+    .map(|(((cond, body), opt_elifs), opt_else)| Statement::Condition(
+        vec![(cond, body.unwrap_or(vec!()))]
+        .into_iter()
+        .chain(opt_elifs.map(
+            |v| v.into_iter()
+                 .map(|(expr, opt_body)| (expr, opt_body.unwrap_or(vec!())))
+                 .collect()
+            ).unwrap_or(vec!()).into_iter())
+        .collect(),
+        opt_else.and_then(|x| x)))
+    .parse_state(input)
 }
 
 fn statement<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
@@ -248,6 +270,16 @@ fn events<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
+pub fn chunk<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Option<Vec<Statement>>, I>
+{
+    optional(
+        lift(Tok::Indent)
+        .with(many1(parser(statement)))
+        .skip(lift(Tok::Dedent)))
+    .parse_state(input)
+}
+
 pub fn block<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Block, I>
 {
@@ -256,10 +288,7 @@ pub fn block<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .and(parser(events))
     .skip(lift(Tok::Colon))
     .skip(lift(Tok::Newline))
-    .and(optional(
-        lift(Tok::Indent)
-        .with(many1(parser(statement)))
-        .skip(lift(Tok::Dedent))))
+    .and(parser(chunk))
     .map(|(((name, opt_params), opt_events), opt_stmtlist)| {
         Block::Html {
             name: name,
