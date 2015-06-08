@@ -5,7 +5,7 @@ css:
     display: none
   .tooltip
     background-color: yellow
-    border: solid black 1px  # TODO better css styles (2)
+    border: solid black 1px
 
 html render(elements) events delete:
   div
@@ -16,19 +16,19 @@ html render(elements) events delete:
       link {mouseenter, mouseleave} = tooltip
       link click = text_switch.toggle
       "toggle text"
-    if tooltip.visible:  # TODO conditionals (4)
-      .tooltip[style=tooltip.style()]   # TODO attributes (3)
+    if tooltip.visible:  # TODO conditionals (5)
+      .tooltip[style=tooltip.style()]
         "hello"
 
     if text_visible.value
       div
         "Extra text"
 
-    for el of elements:  # TODO loops
+    for el of elements:  # TODO loops (6)
       span
         "{el.name}"
-        confirm_btn(el.name)
-          link action = el.id -> delete  # TODO create event into stream (1)
+        confirm_btn(el.name)  # TODO function call (4)
+          link action = el.id -> delete
 
 html confirm_btn(label) events action:
   div

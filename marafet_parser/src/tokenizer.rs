@@ -157,11 +157,21 @@ impl<'a> Tokenizer<'a> {
                                 ':' => TokenType::Colon,
                                 '.' => TokenType::Dot,
                                 '=' => TokenType::Equals,
-                                '-' => TokenType::Dash,
+                                '-' => {
+                                    match self.iter.peek() {
+                                        Some(('>', _, _, _)) => {
+                                            self.iter.next();
+                                            TokenType::ArrowRight
+                                        }
+                                        _ => TokenType::Dash,
+                                    }
+                                }
                                 ',' => TokenType::Comma,
                                 _ => unreachable!(),
                             };
-                            return Some((typ, &self.data[off..off+1], pos));
+                            return Some((typ,
+                                &self.data[off..self.iter.offset],
+                                pos));
                         }
                         '#' => {
                             loop {
@@ -282,6 +292,28 @@ impl<'a> Tokenizer<'a> {
                                 _ => TokenType::Ident,
                             };
                             return Some((tok, value, pos));
+                        }
+                        '0'...'9' => {
+                            let mut offset = self.data.len();
+                            loop {
+                                match self.iter.peek() {
+                                    Some((x, off, _, _)) => {
+                                        match x {
+                                            'a'...'z'|'A'...'Z'
+                                            |'0'...'9'|'_'|'.'
+                                            => {}
+                                            _ => {
+                                                offset = off;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    None => break,
+                                }
+                                self.iter.next();
+                            }
+                            let value = &self.data[off..offset];
+                            return Some((TokenType::Number, value, pos));
                         }
                         _ => {
                             return None; // Unexpected character

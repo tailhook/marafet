@@ -27,6 +27,7 @@ pub enum TokenType {
     Colon,          // :
     Dot,            // .
     Dash,           // -
+    ArrowRight,     // ->
     OpenParen,      // (
     OpenBracket,    // [
     OpenBrace,      // {
@@ -34,6 +35,7 @@ pub enum TokenType {
     CloseBracket,   // ]
     CloseBrace,     // }
     Ident,
+    Number,
     String,
     Newline,
     Indent,
@@ -112,6 +114,7 @@ impl TokenType {
             TokenType::CloseBracket => Info::Borrowed("]"),
             TokenType::CloseBrace => Info::Borrowed("}"),
             TokenType::Ident => Info::Borrowed("identifier"),
+            TokenType::Number => Info::Borrowed("number"),
             TokenType::String => Info::Borrowed("quoted string"),
             TokenType::Newline => Info::Borrowed("new line"),
             TokenType::Indent => Info::Borrowed("indentation"),
@@ -121,6 +124,7 @@ impl TokenType {
             TokenType::Colon => Info::Borrowed("colon"),
             TokenType::Dot => Info::Borrowed("dot"),
             TokenType::Dash => Info::Borrowed("dash (i.e. minus)"),
+            TokenType::ArrowRight => Info::Borrowed("arrow right"),
             TokenType::Eof => Info::Borrowed("end of file"),
             TokenType::Import => Info::Borrowed("import"),
             TokenType::From => Info::Borrowed("from"),

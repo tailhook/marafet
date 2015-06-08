@@ -39,6 +39,7 @@ pub enum Statement {
     Element {
         name: String,
         classes: Vec<String>,
+        attributes: Vec<(String, Expression)>,
         body: Vec<Statement>,
     },
     Text(String),
@@ -59,8 +60,8 @@ fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn element<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn element_start<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<(String, Vec<String>), I>
 {
     let element_head = lift(Tok::Ident)
         .map(ParseToken::into_string)
@@ -69,15 +70,37 @@ fn element<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     let div_head = many1::<Vec<_>, _>(lift(Tok::Dot)
             .with(lift(Tok::Ident).map(ParseToken::into_string)))
         .map(|items| (String::from("div"), items));
-    let head = element_head.or(div_head).skip(lift(Tok::Newline));
+    element_head
+    .or(div_head)
+    .parse_state(input)
+}
 
-    head
+fn attributes<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Option<Vec<(String, Expression)>>, I>
+{
+    optional(lift(Tok::OpenBracket)
+        .with(sep_by::<Vec<_>, _, _>(
+            lift(Tok::Ident).map(ParseToken::into_string)
+                .skip(lift(Tok::Equals))
+                .and(parser(expression)),
+            lift(Tok::Comma)))
+        .skip(lift(Tok::CloseBracket)))
+    .parse_state(input)
+}
+
+fn element<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Statement, I>
+{
+    parser(element_start)
+    .and(parser(attributes))
+    .skip(lift(Tok::Newline))
     .and(optional(lift(Tok::Indent)
         .with(many1(parser(statement)))
         .skip(lift(Tok::Dedent))))
-    .map(|((name, classes), opt_body)| Statement::Element {
+    .map(|(((name, classes), opt_attributes), opt_body)| Statement::Element {
         name: name,
         classes: classes,
+        attributes: opt_attributes.unwrap_or(vec!()),
         body: opt_body.unwrap_or(vec!()),
         })
     .parse_state(input)
@@ -88,6 +111,17 @@ fn literal<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     lift(Tok::String).skip(lift(Tok::Newline))
     .map(|tok| Statement::Text(tok.unescape()))
+    .parse_state(input)
+}
+
+fn expr_params<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Option<Vec<Expression>>, I>
+{
+    optional(lift(Tok::OpenParen)
+        .with(sep_by::<Vec<_>, _, _>(
+            parser(expression),
+            lift(Tok::Comma)))
+        .skip(lift(Tok::CloseParen)))
     .parse_state(input)
 }
 
@@ -102,11 +136,7 @@ fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
             Expression::Name(vec[vec.len()-1].clone()),
             |expr, name| Expression::Attr(Box::new(expr), name.clone()))
     })
-    .and(optional(lift(Tok::OpenParen)
-        .with(sep_by::<Vec<_>, _, _>(
-            parser(expression),
-            lift(Tok::Comma)))
-        .skip(lift(Tok::CloseParen))))
+    .and(parser(expr_params))
     .map(|(mut expr, opt_paren)| {
         if let Some(paren) = opt_paren {
             expr = Expression::Call(Box::new(expr), paren);
@@ -128,6 +158,19 @@ fn store<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
+fn link_dest<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<LinkDest, I>
+{
+    parser(expression)
+    .and(optional(lift(Tok::ArrowRight)
+                  .with(parser(expression))))
+    .map(|(x, y)| match y {
+        Some(dest) => LinkDest::Mapping(x, dest),
+        None => LinkDest::Stream(x),
+    })
+    .parse_state(input)
+}
+
 fn multi_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Link, I>
 {
@@ -138,8 +181,8 @@ fn multi_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
             lift(Tok::Ident).map(ParseToken::into_string)))),
         lift(Tok::Comma)))
     .skip(lift(Tok::Equals))
-    .and(parser(expression))
-    .map(|(lst, expr)| Link::Multi(lst, LinkDest::Stream(expr)))
+    .and(parser(link_dest))
+    .map(|(lst, dest)| Link::Multi(lst, dest))
     .parse_state(input)
 }
 
@@ -148,8 +191,8 @@ fn single_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     lift(Tok::Ident)
     .skip(lift(Tok::Equals))
-    .and(parser(expression))
-    .map(|(name, expr)| Link::One(name.into_string(), LinkDest::Stream(expr)))
+    .and(parser(link_dest))
+    .map(|(name, dest)| Link::One(name.into_string(), dest))
     .parse_state(input)
 }
 
