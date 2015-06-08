@@ -45,6 +45,7 @@ pub enum Statement {
     Text(String),
     Store(String, Expression),
     Link(Vec<Link>),
+    Condition(Vec<(Expression, Statement)>, Option<Box<Statement>>),
 }
 
 
@@ -207,15 +208,23 @@ fn link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
+fn condition<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Statement, I>
+{
+    lift(Tok::If)
+    .with(parser(expression))
+    .skip(Tok::Colon)
+    .skip(Tok::Newline)
+}
+
 fn statement<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Statement, I>
 {
-
-
     parser(element)
     .or(parser(literal))
     .or(parser(store))
     .or(parser(link))
+    .or(parser(condition))
     .parse_state(input)
 }
 

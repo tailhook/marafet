@@ -16,30 +16,30 @@ html render(elements) events delete:
       link {mouseenter, mouseleave} = tooltip
       link click = text_switch.toggle
       "toggle text"
-    if tooltip.visible:  # TODO conditionals (5)
+    if tooltip.visible:  # TODO conditionals (4)
       .tooltip[style=tooltip.style()]
         "hello"
 
-    if text_visible.value
+    if text_switch.value:
       div
         "Extra text"
-
-    for el of elements:  # TODO loops (6)
-      span
-        "{el.name}"
-        confirm_btn(el.name)  # TODO function call (4)
-          link action = el.id -> delete
-
-html confirm_btn(label) events action:
-  div
-    store confirm = new Toggle()
-    button
-      link click = confirm.toggle
-      "delete"
-
-    if confirm.value:
-      div
-        p
-          "Do you really want to delete \"{label}\"?"
-        button
-          link click = action
+#
+#    for el of elements:  # TODO loops (5)
+#      span
+#        "{el.name}"
+#        confirm_btn(el.name)  # TODO function call (6)
+#          link action = el.id -> delete
+#
+#html confirm_btn(label) events action:
+#  div
+#    store confirm = new Toggle()
+#    button
+#      link click = confirm.toggle
+#      "delete"
+#
+#    if confirm.value:
+#      div
+#        p
+#          "Do you really want to delete \"{label}\"?"
+#        button
+#          link click = action

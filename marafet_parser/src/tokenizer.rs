@@ -280,6 +280,7 @@ impl<'a> Tokenizer<'a> {
                                 "import" => TokenType::Import,
                                 "from" => TokenType::From,
                                 "if" => TokenType::If,
+                                "elif" => TokenType::Elif,
                                 "for" => TokenType::For,
                                 "in" => TokenType::In,
                                 "of" => TokenType::Of,
