@@ -91,6 +91,11 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 try!(self.emit_statements(&body, indent));
                 try!(self.buf.write_all(b"}"));
             }
+            &Expression::AssignAttr(ref expr, ref attr, ref value) => {
+                try!(self.emit_expression(expr, indent));
+                try!(write!(self.buf, ".{} = ", attr));
+                try!(self.emit_expression(value, indent));
+            }
         }
         Ok(())
     }

@@ -7,6 +7,7 @@ use super::Generator;
 use super::ast::{Code, Param};
 use super::ast::Statement::{Var, Expr};
 use super::ast::Expression::{Call, Name, Str, Attr, Function, List};
+use super::ast::Expression::{AssignAttr};
 
 
 fn string_to_ident(src: &str) -> String {
@@ -24,6 +25,7 @@ fn string_to_ident(src: &str) -> String {
 impl<'a, W:Write+'a> Generator<'a, W> {
     pub fn wrap_amd(&self, code: Code, ast: &Ast) -> Code {
         let mut code_prefix = vec![];
+        let mut code_suffix = vec![];
         let mut dependencies = vec![
             Str(String::from("require")),
             Str(String::from("exports")),
@@ -60,16 +62,26 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                                      name.clone())));
                     }
                 }
-                _ => {}
+                &Block::Html(ref name, _, _) => {
+                    code_suffix.push(Expr(AssignAttr(
+                        Box::new(Name(String::from("exports"))),
+                        name.clone(),
+                        Box::new(Name(String::from(name.clone()))),
+                        )));
+                }
+                // TODO(tailhook) may be export css too?
+                &Block::Css(_, _) => {}
             }
         }
-        code_prefix.extend(code.statements.into_iter());
+        let mut body = code_prefix;
+        body.extend(code.statements.into_iter());
+        body.extend(code_suffix.into_iter());
         return Code {
             statements: vec![
                 Expr(Call(Box::new(Name(String::from("define"))), vec![
                     Str(self.amd_name.to_string()),
                     List(dependencies),
-                    Function(None, arguments, code_prefix)
+                    Function(None, arguments, body)
                 ])),
             ],
         };
