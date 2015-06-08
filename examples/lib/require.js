@@ -18,6 +18,8 @@
             var v = requirements[i];
             if(v == 'exports') {
                 args.push(exp);
+            } else if(v == 'require') {
+                args.push(require);
             } else {
                 args.push(require(v))
             }
