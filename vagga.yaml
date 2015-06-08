@@ -19,3 +19,4 @@ containers:
       script: "./install.sh --prefix=/usr --components=rustc,cargo"
     environ:
       HOME: /work/run
+      MARAFET: /work/target/debug/marafet

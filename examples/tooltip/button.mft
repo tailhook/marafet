@@ -6,5 +6,6 @@ css:
 html render:
   div
     button
+        "hover me"
     .tooltip
       "hello"
