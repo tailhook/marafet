@@ -275,6 +275,10 @@ impl<'a> Tokenizer<'a> {
                                 "of" => TokenType::Of,
                                 "as" => TokenType::As,
                                 "else" => TokenType::Else,
+                                "events" => TokenType::Events,
+                                "store" => TokenType::Store,
+                                "link" => TokenType::Link,
+                                "new" => TokenType::New,
                                 _ => TokenType::Ident,
                             };
                             return Some((tok, value, pos));

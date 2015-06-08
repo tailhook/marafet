@@ -17,6 +17,10 @@ pub enum TokenType {
     Of,
     As,
     Else,
+    Events,
+    Link,
+    Store,
+    New,
 
     Comma,          // ,
     Equals,         // =
@@ -126,6 +130,10 @@ impl TokenType {
             TokenType::Of => Info::Borrowed("of"),
             TokenType::As => Info::Borrowed("as"),
             TokenType::Else => Info::Borrowed("else"),
+            TokenType::Events => Info::Borrowed("events"),
+            TokenType::Link => Info::Borrowed("link"),
+            TokenType::Store => Info::Borrowed("store"),
+            TokenType::New => Info::Borrowed("new"),
         }
     }
 }

@@ -21,7 +21,12 @@ pub mod html;
 #[derive(Debug, Clone)]
 pub enum Block {
     Css(Vec<css::Param>, Vec<css::Rule>),
-    Html(String, Vec<html::Param>, Vec<html::Statement>),
+    Html {
+        name: String,
+        params: Vec<html::Param>,
+        events: Vec<String>,
+        statements: Vec<html::Statement>,
+    },
     ImportModule(String, String),
     ImportVars(Vec<(String, Option<String>)>, String),
 }

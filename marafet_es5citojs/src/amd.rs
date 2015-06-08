@@ -62,7 +62,7 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                                      name.clone())));
                     }
                 }
-                &Block::Html(ref name, _, _) => {
+                &Block::Html { ref name, ..} => {
                     code_suffix.push(Expr(AssignAttr(
                         Box::new(Name(String::from("exports"))),
                         name.clone(),

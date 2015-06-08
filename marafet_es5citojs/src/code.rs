@@ -60,10 +60,10 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     }
     pub fn code(&self, ast: &Ast) -> Code {
         let mut stmt = vec!();
-        for block in ast.blocks.iter() {
-            if let &Block::Html(ref name, ref args, ref statements) = block {
+        for blk in ast.blocks.iter() {
+            if let &Block::Html {ref name, ref params, ref statements, ..} = blk {
                 stmt.push(Statement::Function(name.clone(),
-                    args.iter().map(|p| Param {
+                    params.iter().map(|p| Param {
                         name: p.name.clone(),
                         default_value: p.default_value.as_ref().map(
                             |v| Expression::Str(v.clone())),
