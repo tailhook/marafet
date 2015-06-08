@@ -1,6 +1,7 @@
 use std::io::{Write};
 
 use parser::html;
+use parser::html::Expression as Expr;
 use parser::html::Statement::{Element, Text};
 use parser::{Ast, Block};
 use util::join;
@@ -11,7 +12,10 @@ use super::Generator;
 
 
 impl<'a, W:Write+'a> Generator<'a, W> {
-    fn attrs(&self, name: &String, cls: &Vec<String>) -> Expression {
+    fn attrs(&self, name: &String, cls: &Vec<String>,
+        attrs: &Vec<(String, Expr)>)
+        -> Expression
+    {
         let mut attrs = vec!();
         if cls.len() > 0 {
             let namestr = &self.block_name.to_string();
@@ -23,11 +27,15 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             attrs.push((String::from("class"),
                 Expression::Str(self.block_name.to_string())));
         }
+        for (name, value) in attrs {
+            // TODO(tailhook) compile real attribute expression
+            attrs.push((name.clone(), Expression::Str(String::from("value"))));
+        }
         Expression::Object(attrs)
     }
     fn element(&self, st: &html::Statement) -> Expression {
         match st {
-            &Element { ref name, ref classes, ref body } => {
+            &Element { ref name, ref classes, ref body, ref attributes } => {
                 if classes.len() == 0 && body.len() == 0 {
                     Expression::Object(vec![
                         (String::from("tag"), Expression::Str(name.clone())),
@@ -35,7 +43,8 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 } else {
                     Expression::Object(vec![
                         (String::from("tag"), Expression::Str(name.clone())),
-                        (String::from("attrs"), self.attrs(name, classes)),
+                        (String::from("attrs"),
+                            self.attrs(name, classes, attributes)),
                         (String::from("children"), self.fragment(&body)),
                         ])
                 }
