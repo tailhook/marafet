@@ -82,3 +82,10 @@ pub fn parse_string(text: &str) -> Result<Ast, String> {
     .map_err(|x| format!("Parse error: {}", x))
     .map(|(ast, _)| ast)
 }
+
+pub fn print_tokens(text: &str) {
+    Tokenizer::new(text)
+    .inspect(|x| println!("{:?}", x))
+    .take_while(|&(ref typ, _, _)| typ != &Eof)
+    .last();
+}

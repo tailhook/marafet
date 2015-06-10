@@ -76,16 +76,8 @@ pub struct Tokenizer<'a> {
     indents: Vec<usize>,
 }
 
-impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token<'a>;
-    fn next(&mut self) -> Option<Token<'a>> {
-        let tok = self._next();
-        println!("Next token {:?}", tok);
-        return tok;
-    }
-}
-
 impl<'a> Tokenizer<'a> {
+
     pub fn new(val: &'a str) -> Tokenizer<'a> {
         return Tokenizer {
             data: val,
@@ -101,9 +93,77 @@ impl<'a> Tokenizer<'a> {
             indents: vec!(0),
         };
     }
-    fn _next(&mut self) -> Option<Token<'a>> {
+}
+
+impl<'a> Iterator for Tokenizer<'a> {
+    type Item = Token<'a>;
+    fn next(&mut self) -> Option<Token<'a>> {
         'outer: loop {
             match self.iter.peek() {
+                Some(('\n', _, _, 1)) => {
+                    self.iter.next();
+                    continue 'outer;
+                }
+                Some((' ', _, _, 1)) => {
+                    let mut niter = self.iter.clone();
+                    loop {
+                        niter.next();
+                        match niter.peek() {
+                            Some((' ', _, _, _)) => continue,
+                            Some(('#', _, _, _)) => {
+                                self.iter = niter;
+                                loop {
+                                    match self.iter.next() {
+                                        Some(('\n', _, _, _)) | None
+                                        => continue 'outer,
+                                        _ => continue,
+                                    }
+                                }
+                            }
+                            Some(('\n', _, _, _)) | None => {
+                                self.iter = niter;
+                                continue 'outer;
+                            }
+                            Some((x, _, line, col)) => {
+                                let indent = (col - 1) as usize;
+                                let curindent = *self.indents.last().unwrap();
+                                let typ;
+                                if indent == curindent {
+                                    self.iter = niter;    // always commit
+                                    continue 'outer;
+                                } else if indent > curindent {
+                                    self.indents.push(indent);
+                                    self.iter = niter;    // always commit
+                                    typ = TokenType::Indent;
+                                } else {
+                                    self.indents.pop();
+                                    let nind = *self.indents.last().unwrap();
+                                    if nind < indent {
+                                        // TODO(tailhook) how to report err?
+                                        return None;
+                                    } else if nind == indent {
+                                        self.iter = niter;  // commit if last
+                                    }
+                                    typ = TokenType::Dedent;
+                                }
+                                let pos = SourcePosition {
+                                    line: line,
+                                    column: col,
+                                    };
+                                return Some((typ, "", pos));
+                            }
+                        }
+                    }
+                    continue 'outer;
+                }
+                Some(('#', _, line, 1)) => {
+                    loop {
+                        match self.iter.next() {
+                            Some(('\n', _, _, _)) | None => continue 'outer,
+                            _ => continue,
+                        }
+                    }
+                }
                 Some((ch, _, _, 1)) if ch != ' ' && self.indents.len() > 1 => {
                     self.indents.pop().unwrap();
                     let pos = SourcePosition {
@@ -180,7 +240,7 @@ impl<'a> Tokenizer<'a> {
                                     Some(_) => {}
                                 }
                             }
-                            continue;
+                            return Some((TokenType::Newline, "\n", pos));
                         }
                         '"'|'\'' => {
                             let dlm = ch;
@@ -202,55 +262,6 @@ impl<'a> Tokenizer<'a> {
                             }
                             let value = &self.data[off..self.iter.offset+1];
                             return Some((TokenType::String, value, pos));
-                        }
-                        ' ' if column == 1 => {
-                            let mut offset;
-                            let mut indent;
-                            loop {
-                                match self.iter.peek() {
-                                    Some(('\n', _, _, _)) => {
-                                        self.iter.next();  // skip empty line
-                                        continue 'outer;
-                                    }
-                                    Some((' ', _, _, _)) => {
-                                        self.iter.next();
-                                        continue;
-                                    }
-                                    Some(('#', _, _, _)) => {
-                                        continue 'outer;
-                                    }
-                                    Some((_, off, _, col)) => {
-                                        offset = off;
-                                        indent = (col - 1) as usize;
-                                        break;
-                                    }
-                                    None => {
-                                        continue 'outer;  // WS at EOF
-                                    }
-                                }
-                            }
-                            let chunk = &self.data[off..offset];
-                            let mut typ;
-                            let curindent = *self.indents.last().unwrap();
-                            if indent == curindent {
-                                continue;
-                            } else if indent > curindent {
-                                self.indents.push(indent);
-                                typ = TokenType::Indent;
-                            } else {
-                                loop {
-                                    let nindent = self.indents.pop().unwrap();
-                                    if nindent == indent {
-                                        self.indents.push(indent);
-                                        break;
-                                    } else if nindent < indent {
-                                        // TODO(tailhook) how to report err?
-                                        return None;
-                                    }
-                                }
-                                typ = TokenType::Dedent;
-                            }
-                            return Some((typ, chunk, pos));
                         }
                         ' '|'\t' => {  // Skip whitespace
                             continue;

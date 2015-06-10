@@ -59,7 +59,19 @@ fn main() {
     let mut buf = Vec::new();
     File::open(&source).and_then(|mut f| f.read_to_end(&mut buf)).unwrap();
     let body = String::from_utf8(buf).unwrap();
-    let ast = parser::parse_string(&body[..]).unwrap();
+
+    if print_ast {
+        println!("--- Tokens ---");
+        parser::print_tokens(&body[..]);
+    }
+
+    let ast = match parser::parse_string(&body[..]) {
+        Ok(ast) => ast,
+        Err(e) => {
+            println!("Error parsing file {:?}: {}", source, e);
+            exit(1);
+        }
+    };
 
     if print_ast {
         println!("--- Ast ---");

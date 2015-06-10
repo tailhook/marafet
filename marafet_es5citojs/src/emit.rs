@@ -96,6 +96,15 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 try!(write!(self.buf, ".{} = ", attr));
                 try!(self.emit_expression(value, indent));
             }
+            &Expression::Ternary(ref cond, ref left, ref right) => {
+                try!(write!(self.buf, "(("));
+                try!(self.emit_expression(cond, indent));
+                try!(write!(self.buf, ")?("));
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, "):("));
+                try!(self.emit_expression(right, indent));
+                try!(write!(self.buf, "))"));
+            }
         }
         Ok(())
     }

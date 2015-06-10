@@ -28,5 +28,6 @@ pub enum Expression {
     Call(Box<Expression>, Vec<Expression>),
     Function(Option<String>, Vec<Param>, Vec<Statement>),
     AssignAttr(Box<Expression>, String, Box<Expression>),
+    Ternary(Box<Expression>, Box<Expression>, Box<Expression>),
 }
 

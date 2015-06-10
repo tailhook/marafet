@@ -16,7 +16,7 @@ html render(elements) events delete:
       link {mouseenter, mouseleave} = tooltip
       link click = text_switch.toggle
       "toggle text"
-    if tooltip.visible:  # TODO conditionals (4)
+    if tooltip.visible:
       .tooltip[style=tooltip.style()]
         "hello"
 

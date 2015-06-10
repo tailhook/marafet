@@ -2,7 +2,7 @@ use std::io::{Write};
 
 use parser::html;
 use parser::html::Expression as Expr;
-use parser::html::Statement::{Element, Text};
+use parser::html::Statement::{Element, Text, Store, Link, Condition};
 use parser::{Ast, Block};
 use util::join;
 
@@ -12,26 +12,31 @@ use super::Generator;
 
 
 impl<'a, W:Write+'a> Generator<'a, W> {
+
+    fn compile_expr(&self, expr: &Expr) -> Expression
+    {
+        unimplemented!()
+    }
+
     fn attrs(&self, name: &String, cls: &Vec<String>,
         attrs: &Vec<(String, Expr)>)
         -> Expression
     {
-        let mut attrs = vec!();
+        let mut rattrs = vec!();
         if cls.len() > 0 {
             let namestr = &self.block_name.to_string();
             let nclasses = vec![namestr].into_iter()
                 .chain(cls.iter());
-            attrs.push((String::from("class"),
+            rattrs.push((String::from("class"),
                         Expression::Str(join(nclasses, " "))));
         } else if self.bare_element_names.contains(name) {
-            attrs.push((String::from("class"),
+            rattrs.push((String::from("class"),
                 Expression::Str(self.block_name.to_string())));
         }
-        for (name, value) in attrs {
-            // TODO(tailhook) compile real attribute expression
-            attrs.push((name.clone(), Expression::Str(String::from("value"))));
+        for &(ref name, ref value) in attrs {
+            rattrs.push((name.clone(), self.compile_expr(value)));
         }
-        Expression::Object(attrs)
+        Expression::Object(rattrs)
     }
     fn element(&self, st: &html::Statement) -> Expression {
         match st {
@@ -52,16 +57,33 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Text(ref value) => {
                 Expression::Str(value.clone())
             }
+            &Condition(ref conditions, ref fallback) => {
+                conditions.iter().rev()
+                .fold(fallback.as_ref()
+                    .map(|x| self.fragment(x))
+                    .unwrap_or(Expression::Str(String::new())),
+                    |old, &(ref cond, ref value)| Expression::Ternary(
+                        Box::new(self.compile_expr(cond)),
+                        Box::new(self.fragment(value)),
+                        Box::new(old),
+                    ))
+            }
+            &Store(_, _) => unreachable!(),  // not an actual child
+            &Link(_) => unreachable!(),  // not an actual child
         }
     }
     fn fragment(&self, statements: &Vec<html::Statement>) -> Expression {
+        let stmt = statements.iter().filter(|x| match x {
+            &&Element {..} | &&Text(_) => true,
+            _ => false,
+            }).collect::<Vec<_>>();
         if statements.len() == 1 {
             return self.element(&statements[0]);
         } else {
             return Expression::Object(vec![(
                 String::from("children"),
                 Expression::List(
-                    statements.iter()
+                    stmt.iter()
                     .map(|s| self.element(s))
                     .collect())
                 )]);
