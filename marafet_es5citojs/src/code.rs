@@ -2,11 +2,14 @@ use std::io::{Write};
 
 use parser::html;
 use parser::html::Expression as Expr;
-use parser::html::Statement::{Element, Text, Store, Link, Condition};
+use parser::html::Statement as Stmt;
+use parser::html::{Link, LinkDest};
+use parser::html::Statement::{Element, Text, Store, Condition};
 use parser::{Ast, Block};
 use util::join;
 
 use super::ast::{Code, Statement, Param, Expression};
+use super::ast::Expression as E;
 
 use super::Generator;
 
@@ -52,17 +55,82 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     fn element(&self, st: &html::Statement) -> Expression {
         match st {
             &Element { ref name, ref classes, ref body, ref attributes } => {
-                if classes.len() == 0 && body.len() == 0 {
-                    Expression::Object(vec![
+                let mut statements = vec![];
+                let mut events = vec![];
+                for item in body.iter() {
+                    match item {
+                        &Store(ref name, ref value) => {
+                            statements.push(Statement::Var(name.clone(),
+                                E::Ternary(
+                                    Box::new(E::Attr(Box::new(
+                                            E::Name(String::from("old_node"))),
+                                            String::from("store_") +name)),
+                                    Box::new(E::Attr(Box::new(
+                                            E::Name(String::from("old_node"))),
+                                            String::from("store_") +name)),
+                                    Box::new(self.compile_expr(value)))));
+                        }
+                        &Stmt::Link(ref links) => {
+                            for lnk in links {
+                                match lnk {
+                                    &Link::One(ref s, LinkDest::Stream(ref expr)) => {
+                                        events.push((s.clone(),
+                                            E::Attr(Box::new(self.compile_expr(expr)),
+                                                String::from("handle_event")),
+                                            ));
+                                    }
+                                    &Link::Multi(ref names, LinkDest::Stream(ref expr)) => {
+                                        let v = format!("_stream_{}",
+                                            statements.len());
+                                        statements.push(Statement::Var(
+                                            v.clone(),
+                                            self.compile_expr(expr)));
+                                        for &(ref attr, ref event) in names {
+                                            events.push((
+                                                event.as_ref().unwrap_or(attr)
+                                                    .clone(),
+                                                E::Attr(
+                                                    Box::new(E::Attr(
+                                                        Box::new(E::Name(v.clone())),
+                                                        attr.clone())),
+                                                    String::from("handle_event"))));
+                                        }
+                                    }
+                                    &Link::One(_, LinkDest::Mapping(_, _)) => unimplemented!(),
+                                    &Link::Multi(_, LinkDest::Mapping(_, _)) => unimplemented!(),
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                let mut properties = vec![
                         (String::from("tag"), Expression::Str(name.clone())),
-                        ])
-                } else {
-                    Expression::Object(vec![
-                        (String::from("tag"), Expression::Str(name.clone())),
+                ];
+                if classes.len() > 0 || attributes.len() > 0 {
+                    properties.push(
                         (String::from("attrs"),
-                            self.attrs(name, classes, attributes)),
-                        (String::from("children"), self.fragment(&body)),
-                        ])
+                            self.attrs(name, classes, attributes)));
+                }
+                if body.len() > 0 {
+                    properties.push(
+                        (String::from("children"), self.fragment(&body)));
+                }
+                if events.len() > 0 {
+                    properties.push(
+                        (String::from("events"), Expression::Object(events)));
+                }
+                if statements.len() > 0 {
+                    statements.push(
+                        Statement::Return(Expression::Object(properties)));
+                    return Expression::Function(None,
+                        vec![Param {
+                            name: String::from("old_node"),
+                            default_value: None,
+                        }],
+                        statements);
+                } else {
+                    return Expression::Object(properties);
                 }
             }
             &Text(ref value) => {
@@ -79,13 +147,13 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                         Box::new(old),
                     ))
             }
-            &Store(_, _) => unreachable!(),  // not an actual child
-            &Link(_) => unreachable!(),  // not an actual child
+            &Stmt::Store(_, _) => unreachable!(),  // not an actual child
+            &Stmt::Link(_) => unreachable!(),  // not an actual child
         }
     }
     fn fragment(&self, statements: &Vec<html::Statement>) -> Expression {
         let stmt = statements.iter().filter(|x| match x {
-            &&Store(_, _) | &&Link(_) => false,
+            &&Stmt::Store(_, _) | &&Stmt::Link(_) => false,
             _ => true,
             }).collect::<Vec<_>>();
         if statements.len() == 1 {

@@ -92,7 +92,8 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                     name=name.as_ref().unwrap_or(&String::from("")),
                     params=join(params.iter().map(|x| &x.name), ", ")));
                 // TODO(tailhook) default values
-                try!(self.emit_statements(&body, indent));
+                try!(self.emit_statements(&body, nindent));
+                try!(self.write_indent(indent));
                 try!(self.buf.write_all(b"}"));
             }
             &Expression::AssignAttr(ref expr, ref attr, ref value) => {
