@@ -15,7 +15,18 @@ impl<'a, W:Write+'a> Generator<'a, W> {
 
     fn compile_expr(&self, expr: &Expr) -> Expression
     {
-        unimplemented!()
+        match expr {
+            &Expr::Name(ref name) => Expression::Name(name.clone()),
+            &Expr::Str(ref value) => Expression::Str(value.clone()),
+            &Expr::New(ref expr)
+            => Expression::New(Box::new(self.compile_expr(expr))),
+            &Expr::Attr(ref expr, ref value)
+            => Expression::Attr(Box::new(self.compile_expr(expr)),
+                                value.clone()),
+            &Expr::Call(ref expr, ref args)
+            => Expression::Call(Box::new(self.compile_expr(expr)),
+                args.iter().map(|x| self.compile_expr(x)).collect()),
+        }
     }
 
     fn attrs(&self, name: &String, cls: &Vec<String>,
@@ -74,8 +85,8 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     }
     fn fragment(&self, statements: &Vec<html::Statement>) -> Expression {
         let stmt = statements.iter().filter(|x| match x {
-            &&Element {..} | &&Text(_) => true,
-            _ => false,
+            &&Store(_, _) | &&Link(_) => false,
+            _ => true,
             }).collect::<Vec<_>>();
         if statements.len() == 1 {
             return self.element(&statements[0]);

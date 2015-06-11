@@ -83,6 +83,10 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 }
                 try!(self.buf.write_all(b")"));
             }
+            &Expression::New(ref val) => {
+                try!(write!(self.buf, "new "));
+                try!(self.emit_expression(val, indent));
+            }
             &Expression::Function(ref name, ref params, ref body) => {
                 try!(write!(self.buf, "function {name}({params}) {{\n",
                     name=name.as_ref().unwrap_or(&String::from("")),
