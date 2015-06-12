@@ -124,7 +124,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 self.iter = niter;
                                 continue 'outer;
                             }
-                            Some((x, _, line, col)) => {
+                            Some((_, _, line, col)) => {
                                 let indent = (col - 1) as usize;
                                 let curindent = *self.indents.last().unwrap();
                                 let typ;
@@ -154,9 +154,8 @@ impl<'a> Iterator for Tokenizer<'a> {
                             }
                         }
                     }
-                    continue 'outer;
                 }
-                Some(('#', _, line, 1)) => {
+                Some(('#', _, _, 1)) => {
                     loop {
                         match self.iter.next() {
                             Some(('\n', _, _, _)) | None => continue 'outer,
