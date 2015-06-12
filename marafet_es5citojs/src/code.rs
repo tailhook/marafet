@@ -21,6 +21,10 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         match expr {
             &Expr::Name(ref name) => Expression::Name(name.clone()),
             &Expr::Str(ref value) => Expression::Str(value.clone()),
+
+            // TODO(tailhook) validate numeric suffixes
+            &Expr::Num(ref value) => Expression::Num(value.clone()),
+
             &Expr::New(ref expr)
             => Expression::New(Box::new(self.compile_expr(expr))),
             &Expr::Attr(ref expr, ref value)
@@ -29,6 +33,18 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Expr::Call(ref expr, ref args)
             => Expression::Call(Box::new(self.compile_expr(expr)),
                 args.iter().map(|x| self.compile_expr(x)).collect()),
+            &Expr::Add(ref a, ref b)
+            => Expression::Add(Box::new(self.compile_expr(a)),
+                               Box::new(self.compile_expr(b))),
+            &Expr::Sub(ref a, ref b)
+            => Expression::Sub(Box::new(self.compile_expr(a)),
+                               Box::new(self.compile_expr(b))),
+            &Expr::Mul(ref a, ref b)
+            => Expression::Mul(Box::new(self.compile_expr(a)),
+                               Box::new(self.compile_expr(b))),
+            &Expr::Div(ref a, ref b)
+            => Expression::Div(Box::new(self.compile_expr(a)),
+                               Box::new(self.compile_expr(b))),
         }
     }
 

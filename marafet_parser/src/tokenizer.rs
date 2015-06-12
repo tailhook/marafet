@@ -211,8 +211,11 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 return None;
                             }
                         }
-                        ':'|'.'|'='|'-'|',' => {
+                        ':'|'.'|'='|','|'-'|'+'|'*'|'/' => {
                             let typ = match ch {
+                                '+' => TokenType::Plus,
+                                '*' => TokenType::Multiply,
+                                '/' => TokenType::Divide,
                                 ':' => TokenType::Colon,
                                 '.' => TokenType::Dot,
                                 '=' => TokenType::Equals,

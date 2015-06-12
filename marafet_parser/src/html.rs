@@ -1,11 +1,16 @@
 use parser_combinators::primitives::{Stream, State, Parser};
 use parser_combinators::{ParseResult, parser};
 use parser_combinators::combinator::{optional, ParserExt, sep_by, many, many1};
+use parser_combinators::combinator::{chainl1};
+
+use util::join;
 
 use super::Block;
 use super::token::{Token, ParseToken};
 use super::token::TokenType as Tok;
 use super::token::lift;
+
+type ChainFun = fn(Expression, Expression) -> Expression;
 
 
 #[derive(Debug, Clone)]
@@ -18,8 +23,13 @@ pub struct Param {
 pub enum Expression {
     Name(String),
     Str(String),
+    Num(String),
     New(Box<Expression>),
     Attr(Box<Expression>, String),
+    Mul(Box<Expression>, Box<Expression>),
+    Div(Box<Expression>, Box<Expression>),
+    Add(Box<Expression>, Box<Expression>),
+    Sub(Box<Expression>, Box<Expression>),
     Call(Box<Expression>, Vec<Expression>),
 }
 
@@ -63,13 +73,23 @@ fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
+fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<String, I>
+{
+    sep_by::<Vec<_>, _, _>(
+        lift(Tok::Ident).map(ParseToken::into_string),
+        lift(Tok::Dash))
+    .map(|x| join(x.iter(), "-"))
+    .parse_state(input)
+}
+
 fn element_start<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<(String, Vec<String>), I>
 {
     let element_head = lift(Tok::Ident)
         .map(ParseToken::into_string)
         .and(many::<Vec<_>, _>(lift(Tok::Dot)
-            .with(lift(Tok::Ident).map(ParseToken::into_string))));
+            .with(parser(dash_name))));
     let div_head = many1::<Vec<_>, _>(lift(Tok::Dot)
             .with(lift(Tok::Ident).map(ParseToken::into_string)))
         .map(|items| (String::from("div"), items));
@@ -145,8 +165,7 @@ fn call<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     })
     .parse_state(input)
 }
-
-fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
     parser(call)
@@ -154,6 +173,33 @@ fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
         .map(|x| Expression::New(Box::new(x))))
     .or(lift(Tok::String)
         .map(ParseToken::into_string).map(Expression::Str))
+    .or(lift(Tok::Number)
+        .map(ParseToken::into_string).map(Expression::Num))
+    .parse_state(input)
+}
+
+fn multiply(l: Expression, r: Expression) -> Expression {
+    Expression::Mul(Box::new(l), Box::new(r))
+}
+fn divide(l: Expression, r: Expression) -> Expression {
+    Expression::Div(Box::new(l), Box::new(r))
+}
+fn add(l: Expression, r: Expression) -> Expression {
+    Expression::Add(Box::new(l), Box::new(r))
+}
+fn subtract(l: Expression, r: Expression) -> Expression {
+    Expression::Sub(Box::new(l), Box::new(r))
+}
+
+fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Expression, I>
+{
+    let factor = lift(Tok::Multiply).map(|_| multiply as ChainFun)
+                 .or(lift(Tok::Divide).map(|_| divide as ChainFun));
+    let sum = lift(Tok::Plus).map(|_| add as ChainFun)
+              .or(lift(Tok::Dash).map(|_| subtract as ChainFun));
+    let factor = chainl1(parser(atom), factor);
+    chainl1(factor, sum)
     .parse_state(input)
 }
 

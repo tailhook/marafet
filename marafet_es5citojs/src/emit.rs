@@ -30,6 +30,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 }
                 try!(self.buf.write_all(b"\""));
             }
+            &Expression::Num(ref s) => {
+                try!(write!(self.buf, "{}", s));
+            }
             &Expression::Object(ref pairs) => {
                 try!(self.buf.write_all(b"{"));
                 if pairs.len() == 0 {
@@ -95,6 +98,26 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Expression::And(ref left, ref right) => {
                 try!(self.emit_expression(left, indent));
                 try!(write!(self.buf, " && "));
+                try!(self.emit_expression(right, indent));
+            }
+            &Expression::Add(ref left, ref right) => {
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, " + "));
+                try!(self.emit_expression(right, indent));
+            }
+            &Expression::Sub(ref left, ref right) => {
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, " - "));
+                try!(self.emit_expression(right, indent));
+            }
+            &Expression::Mul(ref left, ref right) => {
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, " * "));
+                try!(self.emit_expression(right, indent));
+            }
+            &Expression::Div(ref left, ref right) => {
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, " / "));
                 try!(self.emit_expression(right, indent));
             }
             &Expression::Function(ref name, ref params, ref body) => {

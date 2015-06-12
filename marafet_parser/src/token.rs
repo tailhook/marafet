@@ -28,6 +28,9 @@ pub enum TokenType {
     Colon,          // :
     Dot,            // .
     Dash,           // -
+    Plus,           // +
+    Multiply,       // *
+    Divide,         // /
     ArrowRight,     // ->
     OpenParen,      // (
     OpenBracket,    // [
@@ -125,6 +128,9 @@ impl TokenType {
             TokenType::Colon => Info::Borrowed("colon"),
             TokenType::Dot => Info::Borrowed("dot"),
             TokenType::Dash => Info::Borrowed("dash (i.e. minus)"),
+            TokenType::Plus => Info::Borrowed("plus"),
+            TokenType::Multiply => Info::Borrowed("multiply"),
+            TokenType::Divide => Info::Borrowed("division"),
             TokenType::ArrowRight => Info::Borrowed("arrow right"),
             TokenType::Eof => Info::Borrowed("end of file"),
             TokenType::Import => Info::Borrowed("import"),

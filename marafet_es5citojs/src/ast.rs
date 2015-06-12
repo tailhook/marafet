@@ -21,6 +21,7 @@ pub struct Param {
 #[derive(Clone)]
 pub enum Expression {
     Str(String),
+    Num(String),
     Object(Vec<(String, Expression)>),
     List(Vec<Expression>),
     Name(String),
@@ -32,5 +33,9 @@ pub enum Expression {
     New(Box<Expression>),
     Or(Box<Expression>, Box<Expression>),
     And(Box<Expression>, Box<Expression>),
+    Add(Box<Expression>, Box<Expression>),
+    Sub(Box<Expression>, Box<Expression>),
+    Div(Box<Expression>, Box<Expression>),
+    Mul(Box<Expression>, Box<Expression>),
 }
 
