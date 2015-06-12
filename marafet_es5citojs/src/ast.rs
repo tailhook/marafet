@@ -30,5 +30,7 @@ pub enum Expression {
     AssignAttr(Box<Expression>, String, Box<Expression>),
     Ternary(Box<Expression>, Box<Expression>, Box<Expression>),
     New(Box<Expression>),
+    Or(Box<Expression>, Box<Expression>),
+    And(Box<Expression>, Box<Expression>),
 }
 

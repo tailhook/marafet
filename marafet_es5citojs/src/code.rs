@@ -55,20 +55,24 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     fn element(&self, st: &html::Statement) -> Expression {
         match st {
             &Element { ref name, ref classes, ref body, ref attributes } => {
+                let mut properties = vec![
+                        (String::from("tag"), Expression::Str(name.clone())),
+                ];
                 let mut statements = vec![];
                 let mut events = vec![];
                 for item in body.iter() {
                     match item {
                         &Store(ref name, ref value) => {
+                            let prop = String::from("store_") +name;
                             statements.push(Statement::Var(name.clone(),
-                                E::Ternary(
-                                    Box::new(E::Attr(Box::new(
-                                            E::Name(String::from("old_node"))),
-                                            String::from("store_") +name)),
-                                    Box::new(E::Attr(Box::new(
-                                            E::Name(String::from("old_node"))),
-                                            String::from("store_") +name)),
+                                E::Or(
+                                    Box::new(E::And(
+                                        Box::new(E::Name(String::from("old_node"))),
+                                        Box::new(E::Attr(Box::new(
+                                                E::Name(String::from("old_node"))),
+                                                prop.clone())))),
                                     Box::new(self.compile_expr(value)))));
+                            properties.push((prop, E::Name(name.clone())));
                         }
                         &Stmt::Link(ref links) => {
                             for lnk in links {
@@ -104,9 +108,6 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                         _ => {}
                     }
                 }
-                let mut properties = vec![
-                        (String::from("tag"), Expression::Str(name.clone())),
-                ];
                 if classes.len() > 0 || attributes.len() > 0 {
                     properties.push(
                         (String::from("attrs"),

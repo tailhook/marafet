@@ -6,6 +6,7 @@ css:
   .tooltip
     background-color: yellow
     border: solid black 1px
+    padding: 4px 12px 4px 12px
 
 html render(elements) events delete:
   div
@@ -20,7 +21,7 @@ html render(elements) events delete:
       .tooltip[style=tooltip.style()]
         "hello"
 
-    if text_switch.value:
+    if text_switch.visible:
       div
         "Extra text"
 #

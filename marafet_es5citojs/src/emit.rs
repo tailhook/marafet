@@ -87,6 +87,16 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 try!(write!(self.buf, "new "));
                 try!(self.emit_expression(val, indent));
             }
+            &Expression::Or(ref left, ref right) => {
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, " || "));
+                try!(self.emit_expression(right, indent));
+            }
+            &Expression::And(ref left, ref right) => {
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, " && "));
+                try!(self.emit_expression(right, indent));
+            }
             &Expression::Function(ref name, ref params, ref body) => {
                 try!(write!(self.buf, "function {name}({params}) {{\n",
                     name=name.as_ref().unwrap_or(&String::from("")),

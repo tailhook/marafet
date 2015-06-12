@@ -4,11 +4,12 @@
     <meta encoding="utf-8">
     <script src="../lib/cito.min.js" ></script>
     <script src="../lib/require.js" ></script>
+    <script src="../lib/support.js" ></script>
     <script src="button.js" ></script>
   </head>
   <body>
     <script>
-      cito.vdom.append(document.body, require('button').render())
+      require('render').append(document.body, require('button').render);
     </script>
   </body>
 </html>
