@@ -1,7 +1,7 @@
 use parser_combinators::primitives::{Stream, State, Parser};
 use parser_combinators::{ParseResult, parser};
 use parser_combinators::combinator::{optional, ParserExt, sep_by, many, many1};
-use parser_combinators::combinator::{chainl1};
+use parser_combinators::combinator::{chainl1, between};
 
 use util::join;
 
@@ -49,7 +49,7 @@ pub enum Link {
 pub enum Statement {
     Element {
         name: String,
-        classes: Vec<String>,
+        classes: Vec<(String, Option<Expression>)>,
         attributes: Vec<(String, Expression)>,
         body: Vec<Statement>,
     },
@@ -84,14 +84,22 @@ fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 }
 
 fn element_start<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<(String, Vec<String>), I>
+    -> ParseResult<(String, Vec<(String, Option<Expression>)>), I>
 {
     let element_head = lift(Tok::Ident)
         .map(ParseToken::into_string)
         .and(many::<Vec<_>, _>(lift(Tok::Dot)
-            .with(parser(dash_name))));
-    let div_head = many1::<Vec<_>, _>(lift(Tok::Dot)
-            .with(lift(Tok::Ident).map(ParseToken::into_string)))
+            .with(parser(dash_name))
+            .and(optional(lift(Tok::Question)
+                .with(between(lift(Tok::OpenParen), lift(Tok::CloseParen),
+                    parser(expression)))))
+        ));
+    let div_head = many1::<Vec<_>, _>(
+        lift(Tok::Dot)
+        .with(parser(dash_name))
+        .and(optional(lift(Tok::Question)
+            .with(between(lift(Tok::OpenParen), lift(Tok::CloseParen),
+                parser(expression))))))
         .map(|items| (String::from("div"), items));
     element_head
     .or(div_head)

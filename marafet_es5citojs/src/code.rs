@@ -48,23 +48,46 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         }
     }
 
-    fn attrs(&self, name: &String, cls: &Vec<String>,
+    fn attrs(&self, name: &String, cls: &Vec<(String, Option<Expr>)>,
         attrs: &Vec<(String, Expr)>)
         -> Expression
     {
-        let mut rattrs = vec!();
-        if cls.len() > 0 {
-            let namestr = &self.block_name.to_string();
-            let nclasses = vec![namestr].into_iter()
-                .chain(cls.iter());
-            rattrs.push((String::from("class"),
-                        Expression::Str(join(nclasses, " "))));
-        } else if self.bare_element_names.contains(name) {
-            rattrs.push((String::from("class"),
-                Expression::Str(self.block_name.to_string())));
+        let mut class_literals = vec!();
+        let mut class_expr = vec!();
+        if cls.len() > 0 || self.bare_element_names.contains(name) {
+            class_literals.push(self.block_name.to_string());
         }
+        for &(ref cname, ref opt_cond) in cls {
+            if let &Some(ref cond) = opt_cond {
+                class_expr.push(Expression::Ternary(
+                    Box::new(self.compile_expr(cond)),
+                    Box::new(Expression::Str(cname.clone())),
+                    Box::new(Expression::Str(String::from("")))));
+            } else {
+                class_literals.push(cname.clone());
+            }
+        }
+        let mut rattrs = vec!();
         for &(ref name, ref value) in attrs {
-            rattrs.push((name.clone(), self.compile_expr(value)));
+            if &name[..] == "class" {
+                class_expr.push(self.compile_expr(value));
+            } else {
+                rattrs.push((name.clone(), self.compile_expr(value)));
+            }
+        }
+        if class_literals.len() > 0 {
+            class_expr.insert(0,
+                Expression::Str(join(class_literals.iter(), " ")));
+        }
+        if class_expr.len() > 0 {
+            let first = class_expr.remove(0);
+            rattrs.push((String::from("class"), class_expr.into_iter()
+                .fold(first, |acc, val|
+                    Expression::Add(Box::new(
+                        Expression::Add(
+                            Box::new(acc),
+                            Box::new(Expression::Str(String::from(" "))))),
+                        Box::new(val)))));
         }
         Expression::Object(rattrs)
     }
