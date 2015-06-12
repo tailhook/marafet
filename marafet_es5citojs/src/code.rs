@@ -4,7 +4,7 @@ use parser::html;
 use parser::html::Expression as Expr;
 use parser::html::Statement as Stmt;
 use parser::html::{Link, LinkDest};
-use parser::html::Statement::{Element, Text, Store, Condition};
+use parser::html::Statement::{Element, Text, Store, Condition, Output};
 use parser::{Ast, Block};
 use util::join;
 
@@ -136,6 +136,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             }
             &Text(ref value) => {
                 Expression::Str(value.clone())
+            }
+            &Output(ref expr) => {
+                self.compile_expr(expr)
             }
             &Condition(ref conditions, ref fallback) => {
                 conditions.iter().rev()
