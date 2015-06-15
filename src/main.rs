@@ -5,11 +5,22 @@ extern crate marafet_css as css;
 extern crate marafet_es5citojs as es5citojs;
 
 use std::fs::File;
-use std::io::{Read, BufWriter};
-use std::path::PathBuf;
+use std::io::{Read, Write, BufWriter};
+use std::io::{stdin, stdout, stderr};
+use std::io::Error as IoError;
+use std::path::{PathBuf, Path};
 use std::process::exit;
 
 use argparse::{ArgumentParser, Parse, ParseOption, Collect, StoreTrue};
+
+
+fn read_file<R: Read>(f: Result<R, IoError>) -> Result<String, IoError> {
+    let mut buf = Vec::new();
+    match f.and_then(|mut f| f.read_to_end(&mut buf)) {
+        Ok(_) => Ok(String::from_utf8(buf).unwrap()),
+        Err(e) => Err(e),
+    }
+}
 
 
 fn main() {
@@ -56,9 +67,19 @@ fn main() {
     let block_name = block_name.unwrap_or(
             String::from(source.file_stem().unwrap().to_str().unwrap()));
 
-    let mut buf = Vec::new();
-    File::open(&source).and_then(|mut f| f.read_to_end(&mut buf)).unwrap();
-    let body = String::from_utf8(buf).unwrap();
+    let fileresult = if Path::new(&source) == Path::new("-") {
+        read_file(Ok(stdin()))
+    } else {
+        read_file(File::open(&source))
+    };
+    let body = match fileresult {
+        Ok(data) => data,
+        Err(e) => {
+            writeln!(&mut stderr(), "Error reading file {:?}: {}", source, e)
+                .unwrap();
+            exit(1);
+        }
+    };
 
     if print_ast {
         println!("--- Tokens ---");
@@ -100,20 +121,28 @@ fn main() {
         None
     };
     if let Some(filename) = output_js {
-        let mut file = match File::create(&filename).map(BufWriter::new) {
-            Ok(f) => f,
-            Err(e) => {
-                println!("Error opening file {:?}: {}", filename, e);
-                exit(2);
-            }
-        };
-        let res = es5citojs::generate(&mut file, &ast, &es5citojs::Settings {
+        let sourcepath = source.with_extension("");
+        let settings = es5citojs::Settings {
             block_name: &block_name[..],
             css_text: css_text.as_ref().map(|x| &x[..]),
             use_amd: use_amd,
             amd_name: amd_name.as_ref().map(|x| &x[..]).unwrap_or(
-                source.with_extension("").to_str().unwrap()),
-        });
+                sourcepath.to_str().unwrap()),
+        };
+        let res;
+        if Path::new(&filename) == Path::new("-") {
+            res = es5citojs::generate(&mut BufWriter::new(stdout()),
+                                      &ast, &settings);
+        } else {
+            let mut file = match File::create(&filename).map(BufWriter::new) {
+                Ok(f) => f,
+                Err(e) => {
+                    println!("Error opening file {:?}: {}", filename, e);
+                    exit(2);
+                }
+            };
+            res = es5citojs::generate(&mut file, &ast, &settings);
+        }
         if let Err(err) = res {
             println!("{}", err);
             exit(1);
