@@ -13,5 +13,7 @@ css:
 html body:
     div.offset
         "Hello World!"
+        "Str {s} / int {a.b:d} / float {c.d:.2f}"
+        span[class="item-{num}"]
     code
         "print \"Hello\""

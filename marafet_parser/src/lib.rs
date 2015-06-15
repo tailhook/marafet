@@ -83,6 +83,13 @@ pub fn parse_string(text: &str) -> Result<Ast, String> {
     .map(|(ast, _)| ast)
 }
 
+pub fn parse_html_expr(text: &str) -> Result<html::Expression, String> {
+    parser(html::expression)
+    .parse(from_iter(Tokenizer::new(text)))
+    .map_err(|x| format!("Parse error: {}", x))
+    .map(|(ast, _)| ast)
+}
+
 pub fn print_tokens(text: &str) {
     Tokenizer::new(text)
     .inspect(|x| println!("{:?}", x))

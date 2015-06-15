@@ -6,6 +6,7 @@ use parser_combinators::combinator::{chainl1, between, choice};
 use util::join;
 
 use super::Block;
+use super::parse_html_expr;
 use super::token::{Token, ParseToken};
 use super::token::TokenType as Tok;
 use super::token::lift;
@@ -33,6 +34,7 @@ pub enum Comparator {
 pub enum Expression {
     Name(String),
     Str(String),
+    Format(Vec<Fmt>),
     Num(String),
     New(Box<Expression>),
     Attr(Box<Expression>, String),
@@ -57,6 +59,14 @@ pub enum Link {
 }
 
 #[derive(Debug, Clone)]
+pub enum Fmt {
+    Raw(String),
+    Float(Expression, u32), // TODO(tailhook) zero-padding
+    Int(Expression),  // TODO(tailhook) zero-padding
+    Str(Expression),  // TODO(tailhook) need formatting or padding?
+}
+
+#[derive(Debug, Clone)]
 pub enum Statement {
     Element {
         name: String,
@@ -64,7 +74,7 @@ pub enum Statement {
         attributes: Vec<(String, Expression)>,
         body: Vec<Statement>,
     },
-    Text(String),
+    Format(Vec<Fmt>),
     Output(Expression),
     Store(String, Expression),
     Link(Vec<Link>),
@@ -122,9 +132,13 @@ fn attributes<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     optional(lift(Tok::OpenBracket)
         .with(sep_by::<Vec<_>, _, _>(
-            lift(Tok::Ident).map(ParseToken::into_string)
+            lift(Tok::Ident)
+                .map(ParseToken::into_string)
                 .skip(lift(Tok::Equals))
-                .and(parser(expression)),
+                .and(lift(Tok::String)
+                    .map(parse_format_string)
+                    .map(Expression::Format)
+                    .or(parser(expression))),
             lift(Tok::Comma)))
         .skip(lift(Tok::CloseBracket)))
     .parse_state(input)
@@ -146,11 +160,63 @@ fn element<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
+fn parse_format_string(tok: Token) -> Vec<Fmt> {
+    let value = tok.unescape();
+    let mut iter = value.char_indices();
+    let mut buf = vec![];
+    let mut cur = 0;
+    loop {
+        let mut start = None;
+        let mut end = None;
+        let mut fmt = None;
+        for (idx, ch) in &mut iter {
+            if ch == '{' && idx < value.len()-1
+                && &value[idx+1..idx+2] != "{"
+            {
+                start = Some(idx);
+                break;
+            }
+        }
+        for (idx, ch) in &mut iter {
+            if ch == ':' && fmt.is_none() {
+                fmt = Some(idx);
+            } else if ch == '}' {
+                end = Some(idx);
+                break;
+            }
+        }
+        if start.is_none() || end.is_none() {
+            if cur < value.len() {
+                buf.push(Fmt::Raw(String::from(&value[cur..])));
+            }
+            break;
+        }
+        let start = start.unwrap();
+        let end = end.unwrap();
+        if start > cur {
+            buf.push(Fmt::Raw(String::from(&value[cur..start])));
+        }
+        if end > start {
+            let expr = parse_html_expr(&value[start+1..fmt.unwrap_or(end)])
+                .unwrap();  // TODO(tailhook) real error reporting
+            if let Some(fmt_off) = fmt {
+                // TODO(tailhook) formatting
+                buf.push(Fmt::Str(expr));
+            } else {
+                buf.push(Fmt::Str(expr));
+            }
+        }
+        cur = end+1;
+    }
+    return buf;
+}
+
 fn literal<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Statement, I>
 {
     lift(Tok::String).skip(lift(Tok::Newline))
-    .map(|tok| Statement::Text(tok.unescape()))
+    .map(parse_format_string)
+    .map(Statement::Format)
     .parse_state(input)
 }
 
@@ -223,7 +289,7 @@ fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 }
 
 
-fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+pub fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
     parser(sum).and(optional(many(choice([

@@ -3,8 +3,8 @@ use std::io::{Write};
 use parser::html;
 use parser::html::Expression as Expr;
 use parser::html::Statement as Stmt;
-use parser::html::{Link, LinkDest};
-use parser::html::Statement::{Element, Text, Store, Condition, Output};
+use parser::html::{Link, LinkDest, Fmt};
+use parser::html::Statement::{Element, Store, Condition, Output};
 use parser::{Ast, Block};
 use util::join;
 
@@ -49,7 +49,23 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             => Expression::Comparison(op,
                 Box::new(self.compile_expr(a)),
                 Box::new(self.compile_expr(b))),
+            &Expr::Format(ref value) => {
+                self.compile_format(value)
+            }
         }
+    }
+    fn compile_format(&self, items: &Vec<Fmt>) -> Expression
+    {
+        let mut exprs = items.iter().map(|e| match e {
+            &Fmt::Raw(ref x) => Expression::Str(x.clone()),
+            &Fmt::Str(ref e) => self.compile_expr(e),
+            &Fmt::Float(ref e, _) => self.compile_expr(e), // TODO(tailhook)
+            &Fmt::Int(ref e) => self.compile_expr(e),
+        }).collect::<Vec<_>>();
+        let first = exprs.remove(0);
+        exprs.into_iter().fold(first, |acc, item| {
+            Expression::Add(Box::new(acc), Box::new(item))
+        })
     }
 
     fn attrs(&self, name: &String, cls: &Vec<(String, Option<Expr>)>,
@@ -177,8 +193,8 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                     return Expression::Object(properties);
                 }
             }
-            &Text(ref value) => {
-                Expression::Str(value.clone())
+            &Stmt::Format(ref value) => {
+                self.compile_format(value)
             }
             &Output(ref expr) => {
                 self.compile_expr(expr)
