@@ -26,8 +26,14 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Expression::Str(ref s) => {
                 try!(self.buf.write_all(b"\""));
                 for ch in s.chars() {
-                    try!(self.buf.write_all(
-                        ch.escape_default().collect::<String>().as_bytes()));
+                    match ch {
+                        '\r' => { try!(write!(self.buf, "\\r")); }
+                        '\n' => { try!(write!(self.buf, "\\n")); }
+                        '\t' => { try!(write!(self.buf, "\\t")); }
+                        '\x00'...'\x1f' => { try!(write!(self.buf, "\\x{:02}",
+                                                         ch as u8)) }
+                        _ => { try!(write!(self.buf, "{}", ch)) }
+                    }
                 }
                 try!(self.buf.write_all(b"\""));
             }
