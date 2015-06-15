@@ -30,6 +30,8 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                         '\r' => { try!(write!(self.buf, "\\r")); }
                         '\n' => { try!(write!(self.buf, "\\n")); }
                         '\t' => { try!(write!(self.buf, "\\t")); }
+                        '\"' => { try!(write!(self.buf, "\\\"")); }
+                        '\'' => { try!(write!(self.buf, "\\\'")); }
                         '\x00'...'\x1f' => { try!(write!(self.buf, "\\x{:02}",
                                                          ch as u8)) }
                         _ => { try!(write!(self.buf, "{}", ch)) }
