@@ -1,7 +1,7 @@
 use parser_combinators::primitives::{Stream, State, Parser};
 use parser_combinators::{ParseResult, parser};
 use parser_combinators::combinator::{optional, ParserExt, sep_by, many, many1};
-use parser_combinators::combinator::{chainl1, between};
+use parser_combinators::combinator::{chainl1, between, choice};
 
 use util::join;
 
@@ -20,6 +20,16 @@ pub struct Param {
 }
 
 #[derive(Debug, Clone)]
+pub enum Comparator {
+    Eq,
+    NotEq,
+    Less,
+    LessEq,
+    Greater,
+    GreaterEq,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression {
     Name(String),
     Str(String),
@@ -30,6 +40,7 @@ pub enum Expression {
     Div(Box<Expression>, Box<Expression>),
     Add(Box<Expression>, Box<Expression>),
     Sub(Box<Expression>, Box<Expression>),
+    Comparison(Comparator, Box<Expression>, Box<Expression>),
     Call(Box<Expression>, Vec<Expression>),
 }
 
@@ -199,7 +210,7 @@ fn subtract(l: Expression, r: Expression) -> Expression {
     Expression::Sub(Box::new(l), Box::new(r))
 }
 
-fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
     let factor = lift(Tok::Multiply).map(|_| multiply as ChainFun)
@@ -207,7 +218,43 @@ fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     let sum = lift(Tok::Plus).map(|_| add as ChainFun)
               .or(lift(Tok::Dash).map(|_| subtract as ChainFun));
     let factor = chainl1(parser(atom), factor);
-    chainl1(factor, sum)
+    let sum = chainl1(factor, sum);
+    sum.parse_state(input)
+}
+
+
+fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Expression, I>
+{
+    parser(sum).and(optional(many(choice([
+        lift(Tok::Eq),
+        lift(Tok::NotEq),
+        lift(Tok::Less),
+        lift(Tok::LessEq),
+        lift(Tok::Greater),
+        lift(Tok::GreaterEq),
+        ]).and(parser(sum)))))
+    .map(|(expr, opt_tails): (Expression, Option<Vec<(_, Expression)>>)| {
+        let mut expr = expr;
+        let mut prev = expr.clone();
+        if let Some(tail) = opt_tails {
+            for ((tok, _, _), value) in tail {
+                let comp = match tok {
+                    Tok::Eq => Comparator::Eq,
+                    Tok::NotEq => Comparator::NotEq,
+                    Tok::Less => Comparator::Less,
+                    Tok::LessEq => Comparator::LessEq,
+                    Tok::Greater => Comparator::Greater,
+                    Tok::GreaterEq => Comparator::GreaterEq,
+                };
+                expr = Expression::Comparison(comp,
+                    Box::new(prev),
+                    Box::new(value.clone()));
+                prev = value;
+            }
+        }
+        return expr;
+    })
     .parse_state(input)
 }
 

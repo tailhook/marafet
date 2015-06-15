@@ -25,6 +25,13 @@ pub enum TokenType {
 
     Comma,          // ,
     Equals,         // =
+    Eq,             // ==
+    NotEq,          // !=
+    Greater,        // >
+    Less,           // <
+    GreaterEq,      // >=
+    LessEq,         // <=
+    Not,            // !
     Colon,          // :
     Dot,            // .
     Dash,           // -
@@ -125,7 +132,14 @@ impl TokenType {
             TokenType::Indent => Info::Borrowed("indentation"),
             TokenType::Dedent => Info::Borrowed("unindent"),
             TokenType::Comma => Info::Borrowed("comma"),
-            TokenType::Equals => Info::Borrowed("equals"),
+            TokenType::Equals => Info::Borrowed("equals (assignment)"),
+            TokenType::Eq => Info::Borrowed("double equals"),
+            TokenType::NotEq => Info::Borrowed("not equals"),
+            TokenType::Greater => Info::Borrowed("greater"),
+            TokenType::Less => Info::Borrowed("less"),
+            TokenType::GreaterEq => Info::Borrowed("greater or equal"),
+            TokenType::LessEq => Info::Borrowed("less or equal"),
+            TokenType::Not => Info::Borrowed("not (exclamation mark)"),
             TokenType::Colon => Info::Borrowed("colon"),
             TokenType::Dot => Info::Borrowed("dot"),
             TokenType::Dash => Info::Borrowed("dash (i.e. minus)"),

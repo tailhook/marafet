@@ -211,7 +211,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 return None;
                             }
                         }
-                        ':'|'.'|'='|','|'-'|'+'|'*'|'/'|'?' => {
+                        ':'|'.'|'='|','|'-'|'+'|'*'|'/'|'?'|'>'|'<'|'!' => {
                             let typ = match ch {
                                 '+' => TokenType::Plus,
                                 '*' => TokenType::Multiply,
@@ -219,7 +219,42 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 '?' => TokenType::Question,
                                 ':' => TokenType::Colon,
                                 '.' => TokenType::Dot,
-                                '=' => TokenType::Equals,
+                                '=' => {
+                                    match self.iter.peek() {
+                                        Some(('=', _, _, _)) => {
+                                            self.iter.next();
+                                            TokenType::Eq
+                                        }
+                                        _ => TokenType::Equals,
+                                    }
+                                }
+                                '!' => {
+                                    match self.iter.peek() {
+                                        Some(('=', _, _, _)) => {
+                                            self.iter.next();
+                                            TokenType::NotEq
+                                        }
+                                        _ => TokenType::Not,
+                                    }
+                                }
+                                '>' => {
+                                    match self.iter.peek() {
+                                        Some(('=', _, _, _)) => {
+                                            self.iter.next();
+                                            TokenType::GreaterEq
+                                        }
+                                        _ => TokenType::Greater,
+                                    }
+                                }
+                                '<' => {
+                                    match self.iter.peek() {
+                                        Some(('=', _, _, _)) => {
+                                            self.iter.next();
+                                            TokenType::LessEq
+                                        }
+                                        _ => TokenType::Less,
+                                    }
+                                }
                                 '-' => {
                                     match self.iter.peek() {
                                         Some(('>', _, _, _)) => {
