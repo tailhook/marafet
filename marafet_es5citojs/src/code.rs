@@ -45,6 +45,10 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Expr::Div(ref a, ref b)
             => Expression::Div(Box::new(self.compile_expr(a)),
                                Box::new(self.compile_expr(b))),
+            &Expr::Comparison(op, ref a, ref b)
+            => Expression::Comparison(op,
+                Box::new(self.compile_expr(a)),
+                Box::new(self.compile_expr(b))),
         }
     }
 

@@ -1,3 +1,5 @@
+pub use parser::html::Comparator;
+
 #[derive(Clone)]
 pub struct Code {
     pub statements: Vec<Statement>,
@@ -37,5 +39,6 @@ pub enum Expression {
     Sub(Box<Expression>, Box<Expression>),
     Div(Box<Expression>, Box<Expression>),
     Mul(Box<Expression>, Box<Expression>),
+    Comparison(Comparator, Box<Expression>, Box<Expression>),
 }
 

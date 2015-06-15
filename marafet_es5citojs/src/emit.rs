@@ -1,6 +1,7 @@
 use std::io::{Write, Result};
 
 use util::join;
+use parser::html::Comparator;
 
 use super::Generator;
 use super::ast::{Code, Statement, Expression};
@@ -118,6 +119,18 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Expression::Div(ref left, ref right) => {
                 try!(self.emit_expression(left, indent));
                 try!(write!(self.buf, " / "));
+                try!(self.emit_expression(right, indent));
+            }
+            &Expression::Comparison(op, ref left, ref right) => {
+                try!(self.emit_expression(left, indent));
+                try!(write!(self.buf, " {} ", match op {
+                    Comparator::Eq => "===",
+                    Comparator::NotEq => "!==",
+                    Comparator::Less => "<",
+                    Comparator::LessEq => "<=",
+                    Comparator::Greater => ">",
+                    Comparator::GreaterEq => ">=",
+                }));
                 try!(self.emit_expression(right, indent));
             }
             &Expression::Function(ref name, ref params, ref body) => {

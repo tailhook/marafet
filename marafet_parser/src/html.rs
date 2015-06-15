@@ -19,7 +19,7 @@ pub struct Param {
     pub default_value: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Comparator {
     Eq,
     NotEq,
@@ -218,8 +218,8 @@ fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     let sum = lift(Tok::Plus).map(|_| add as ChainFun)
               .or(lift(Tok::Dash).map(|_| subtract as ChainFun));
     let factor = chainl1(parser(atom), factor);
-    let sum = chainl1(factor, sum);
-    sum.parse_state(input)
+    chainl1(factor, sum)
+    .parse_state(input)
 }
 
 
@@ -246,6 +246,7 @@ fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
                     Tok::LessEq => Comparator::LessEq,
                     Tok::Greater => Comparator::Greater,
                     Tok::GreaterEq => Comparator::GreaterEq,
+                    _ => unreachable!(),
                 };
                 expr = Expression::Comparison(comp,
                     Box::new(prev),
