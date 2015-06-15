@@ -79,7 +79,7 @@ fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
         .with(lift(Tok::String))))  // TODO(tailhook) more expressions
     .map(|((_, name, _), opt)| Param {
         name: String::from(name),
-        default_value: opt.map(|x| String::from(x.1)),
+        default_value: opt.map(ParseToken::unescape)
     })
     .parse_state(input)
 }
@@ -191,7 +191,7 @@ fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .or(lift(Tok::New).with(parser(call))
         .map(|x| Expression::New(Box::new(x))))
     .or(lift(Tok::String)
-        .map(ParseToken::into_string).map(Expression::Str))
+        .map(ParseToken::unescape).map(Expression::Str))
     .or(lift(Tok::Number)
         .map(ParseToken::into_string).map(Expression::Num))
     .parse_state(input)
