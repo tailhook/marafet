@@ -58,9 +58,15 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     {
         let mut exprs = items.iter().map(|e| match e {
             &Fmt::Raw(ref x) => Expression::Str(x.clone()),
-            &Fmt::Str(ref e) => self.compile_expr(e),
-            &Fmt::Float(ref e, _) => self.compile_expr(e), // TODO(tailhook)
-            &Fmt::Int(ref e) => self.compile_expr(e),
+            &Fmt::Str(ref e) => Expression::Call(
+                Box::new(Expression::Name(String::from("String"))),
+                vec![self.compile_expr(e)]),
+            &Fmt::Int(ref e) => Expression::Call(
+                Box::new(Expression::Name(String::from("String"))),
+                vec![self.compile_expr(e)]),
+            &Fmt::Float(ref e, _) => Expression::Call(
+                Box::new(Expression::Name(String::from("String"))),
+                vec![self.compile_expr(e)]),
         }).collect::<Vec<_>>();
         let first = exprs.remove(0);
         exprs.into_iter().fold(first, |acc, item| {
