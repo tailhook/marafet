@@ -42,7 +42,7 @@ fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<String, I>
 {
     sep_by::<Vec<_>, _, _>(
-        lift(Tok::Ident),
+        lift(Tok::Ident).or(lift(Tok::Number)),
         lift(Tok::Dash),
     ).map(|names| join(names.into_iter().map(|(_, val, _)| val), "-"))
     .parse_state(input)

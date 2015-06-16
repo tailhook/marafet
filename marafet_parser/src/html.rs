@@ -98,7 +98,7 @@ fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<String, I>
 {
     sep_by::<Vec<_>, _, _>(
-        lift(Tok::Ident).map(ParseToken::into_string),
+        lift(Tok::Ident).or(lift(Tok::Number)).map(ParseToken::into_string),
         lift(Tok::Dash))
     .map(|x| join(x.iter(), "-"))
     .parse_state(input)
