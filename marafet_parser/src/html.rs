@@ -37,6 +37,9 @@ pub enum Expression {
     Format(Vec<Fmt>),
     Num(String),
     New(Box<Expression>),
+    Not(Box<Expression>),
+    And(Box<Expression>, Box<Expression>),
+    Or(Box<Expression>, Box<Expression>),
     Attr(Box<Expression>, String),
     Mul(Box<Expression>, Box<Expression>),
     Div(Box<Expression>, Box<Expression>),
@@ -149,8 +152,12 @@ fn element<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     parser(element_start)
     .and(parser(attributes))
-    .skip(lift(Tok::Newline))
-    .and(parser(chunk))
+    .and(
+        lift(Tok::String)
+            .skip(lift(Tok::Newline))
+            .map(|x| Some(vec![Statement::Format(parse_format_string(x))]))
+        .or(lift(Tok::Newline)
+            .with(parser(chunk))))
     .map(|(((name, classes), opt_attributes), opt_body)| Statement::Element {
         name: name,
         classes: classes,
@@ -256,6 +263,8 @@ fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     parser(call)
     .or(lift(Tok::New).with(parser(call))
         .map(|x| Expression::New(Box::new(x))))
+    .or(lift(Tok::Not).with(parser(call))
+        .map(|x| Expression::Not(Box::new(x))))
     .or(lift(Tok::String)
         .map(ParseToken::unescape).map(Expression::Str))
     .or(lift(Tok::Number)
@@ -289,7 +298,7 @@ fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 }
 
 
-pub fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+pub fn comparison<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
     parser(sum).and(optional(many(choice([
@@ -323,6 +332,23 @@ pub fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
         return expr;
     })
     .parse_state(input)
+}
+pub fn boolean<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Expression, I>
+{
+    let not = lift(Tok::Not).with(parser(comparison))
+                .or(parser(comparison));
+    let and = chainl1(not, lift(Tok::And)
+        .map(|_| |a, b| Expression::And(Box::new(a), Box::new(b))));
+    let mut or = chainl1(and, lift(Tok::Or)
+        .map(|_| |a, b| Expression::Or(Box::new(a), Box::new(b))));
+    or.parse_state(input)
+}
+
+pub fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Expression, I>
+{
+    parser(boolean).parse_state(input)
 }
 
 fn store<'a, I: Stream<Item=Token<'a>>>(input: State<I>)

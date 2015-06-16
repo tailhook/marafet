@@ -99,6 +99,10 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 try!(write!(self.buf, "new "));
                 try!(self.emit_expression(val, indent));
             }
+            &Expression::Not(ref val) => {
+                try!(write!(self.buf, "!"));
+                try!(self.emit_expression(val, indent));
+            }
             &Expression::Or(ref left, ref right) => {
                 try!(self.emit_expression(left, indent));
                 try!(write!(self.buf, " || "));

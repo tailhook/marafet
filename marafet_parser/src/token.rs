@@ -22,6 +22,9 @@ pub enum TokenType {
     Link,
     Store,
     New,
+    And,
+    Or,
+    Not,
 
     Comma,          // ,
     Equals,         // =
@@ -31,7 +34,6 @@ pub enum TokenType {
     Less,           // <
     GreaterEq,      // >=
     LessEq,         // <=
-    Not,            // !
     Colon,          // :
     Dot,            // .
     Dash,           // -
@@ -139,7 +141,6 @@ impl TokenType {
             TokenType::Less => Info::Borrowed("less"),
             TokenType::GreaterEq => Info::Borrowed("greater or equal"),
             TokenType::LessEq => Info::Borrowed("less or equal"),
-            TokenType::Not => Info::Borrowed("not (exclamation mark)"),
             TokenType::Colon => Info::Borrowed("colon"),
             TokenType::Dot => Info::Borrowed("dot"),
             TokenType::Dash => Info::Borrowed("dash (i.e. minus)"),
@@ -162,6 +163,9 @@ impl TokenType {
             TokenType::Link => Info::Borrowed("link"),
             TokenType::Store => Info::Borrowed("store"),
             TokenType::New => Info::Borrowed("new"),
+            TokenType::Not => Info::Borrowed("not"),
+            TokenType::And => Info::Borrowed("and"),
+            TokenType::Or => Info::Borrowed("or"),
         }
     }
 }

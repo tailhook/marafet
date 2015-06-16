@@ -234,7 +234,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                             self.iter.next();
                                             TokenType::NotEq
                                         }
-                                        _ => TokenType::Not,
+                                        _ => TokenType::Not, //TODO remove?
                                     }
                                 }
                                 '>' => {
@@ -339,6 +339,9 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 "store" => TokenType::Store,
                                 "link" => TokenType::Link,
                                 "new" => TokenType::New,
+                                "not" => TokenType::Not,
+                                "and" => TokenType::And,
+                                "or" => TokenType::Or,
                                 _ => TokenType::Ident,
                             };
                             return Some((tok, value, pos));

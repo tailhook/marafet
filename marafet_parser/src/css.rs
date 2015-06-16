@@ -53,9 +53,10 @@ fn property_value<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     // TODO(tailhook) add numbers slashes and other things
     many::<Vec<_>, _>(
-        lift(Tok::Ident)
-        .or(lift(Tok::Number))
-    ).map(|names| join(names.into_iter().map(|(_, val, _)| val), " "))
+        sep_by::<Vec<_>, _, _>(lift(Tok::Ident).or(lift(Tok::Number)),
+              lift(Tok::Dash),
+        ).map(|names| join(names.into_iter().map(|(_, val, _)| val), "-"))
+    ).map(|names| join(names.into_iter(), " "))
     .parse_state(input)
 }
 

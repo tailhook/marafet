@@ -27,6 +27,14 @@ impl<'a, W:Write+'a> Generator<'a, W> {
 
             &Expr::New(ref expr)
             => Expression::New(Box::new(self.compile_expr(expr))),
+            &Expr::Not(ref expr)
+            => Expression::Not(Box::new(self.compile_expr(expr))),
+            &Expr::And(ref a, ref b)
+            => Expression::And(Box::new(self.compile_expr(a)),
+                               Box::new(self.compile_expr(b))),
+            &Expr::Or(ref a, ref b)
+            => Expression::Or(Box::new(self.compile_expr(a)),
+                               Box::new(self.compile_expr(b))),
             &Expr::Attr(ref expr, ref value)
             => Expression::Attr(Box::new(self.compile_expr(expr)),
                                 value.clone()),
