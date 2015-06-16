@@ -264,8 +264,8 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &&Stmt::Store(_, _) | &&Stmt::Link(_) | &&Stmt::Let(_, _) => false,
             _ => true,
             }).collect::<Vec<_>>();
-        if statements.len() == 1 {
-            return self.statement(&statements[0]);
+        if stmt.len() == 1 {
+            return self.statement(&stmt[0]);
         } else {
             return Expression::Object(vec![(
                 String::from("children"),
