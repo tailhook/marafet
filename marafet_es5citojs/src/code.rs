@@ -10,6 +10,7 @@ use util::join;
 
 use super::ast::{Code, Statement, Param, Expression};
 use super::ast::Expression as E;
+use super::ast::Statement as S;
 
 use super::Generator;
 
@@ -188,8 +189,42 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                                             String::from("handle_event"))));
                                 }
                             }
-                            &L::One(_, D::Mapping(_, _)) => unimplemented!(),
-                            &L::Multi(_, D::Mapping(_, _)) => unimplemented!(),
+                            &L::One(ref s, D::Mapping(ref val, ref dest)) => {
+                                events.push((s.clone(),
+                                    E::Attr(Box::new(
+                                        E::Call(
+                                            Box::new(E::Attr(
+                                                Box::new(self.compile_expr(dest)),
+                                                String::from("map"))),
+                                            vec![E::Function(None, vec![], vec![
+                                                S::Return(self.compile_expr(val))])])),
+                                        String::from("handle_event"),
+                                    )));
+                            }
+                            &L::Multi(ref names, D::Mapping(ref val, ref dest))
+                            => {
+                                let v = format!("_stream_{}",
+                                    statements.len());
+                                statements.push(Statement::Var(
+                                    v.clone(),
+                                    self.compile_expr(dest)));
+                                for &(ref attr, ref event) in names {
+                                    events.push((
+                                        event.as_ref().unwrap_or(attr)
+                                            .clone(),
+                                        E::Attr(Box::new(
+                                            E::Call(
+                                                Box::new(E::Attr(
+                                                    Box::new(E::Attr(
+                                                        Box::new(E::Name(v.clone())),
+                                                        attr.clone())),
+                                                    String::from("map"))),
+                                                vec![E::Function(None, vec![], vec![
+                                                    S::Return(self.compile_expr(val))])])),
+                                            String::from("handle_event"),
+                                    )));
+                                }
+                            }
                         }
                     }
                 }
