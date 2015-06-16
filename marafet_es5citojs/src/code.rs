@@ -60,6 +60,11 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Expr::Format(ref value) => {
                 self.compile_format(value)
             }
+            &Expr::Dict(ref items)
+            => Expression::Object(items.iter()
+                .map(|&(ref name, ref expr)|
+                    (name.clone(), self.compile_expr(expr)))
+                .collect()),
         }
     }
     fn compile_format(&self, items: &Vec<Fmt>) -> Expression
@@ -141,6 +146,10 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         let mut events = vec![];
         for item in body.iter() {
             match item {
+                &Stmt::Let(ref name, ref value) => {
+                    statements.push(Statement::Var(name.clone(),
+                        self.compile_expr(value)));
+                }
                 &Store(ref name, ref value) => {
                     let prop = String::from("store_") +name;
                     statements.push(Statement::Var(name.clone(),
@@ -247,11 +256,12 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             }
             &Stmt::Store(_, _) => unreachable!(),  // not an actual child
             &Stmt::Link(_) => unreachable!(),  // not an actual child
+            &Stmt::Let(_, _) => unreachable!(),  // not an actual child
         }
     }
     fn fragment(&self, statements: &Vec<html::Statement>) -> Expression {
         let stmt = statements.iter().filter(|x| match x {
-            &&Stmt::Store(_, _) | &&Stmt::Link(_) => false,
+            &&Stmt::Store(_, _) | &&Stmt::Link(_) | &&Stmt::Let(_, _) => false,
             _ => true,
             }).collect::<Vec<_>>();
         if statements.len() == 1 {

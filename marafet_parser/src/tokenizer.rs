@@ -104,7 +104,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                     self.iter.next();
                     continue 'outer;
                 }
-                Some((' ', _, _, 1)) => {
+                Some((' ', _, _, 1)) if self.braces.len() == 0 => {
                     let mut niter = self.iter.clone();
                     loop {
                         niter.next();
@@ -184,7 +184,11 @@ impl<'a> Iterator for Tokenizer<'a> {
                             if column == 1 {
                                 continue;  // skip empty line
                             }
-                            return Some((TokenType::Newline, "\n", pos));
+                            if self.braces.len() == 0 {
+                                return Some((TokenType::Newline, "\n", pos));
+                            } else {
+                                continue 'outer;
+                            }
                         }
                         '('|'{'|'[' => {
                             let typ = match ch {
@@ -278,7 +282,11 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     Some(_) => {}
                                 }
                             }
-                            return Some((TokenType::Newline, "\n", pos));
+                            if self.braces.len() == 0 {
+                                return Some((TokenType::Newline, "\n", pos));
+                            } else {
+                                continue 'outer;
+                            }
                         }
                         '"'|'\'' => {
                             let dlm = ch;
@@ -337,6 +345,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 "else" => TokenType::Else,
                                 "events" => TokenType::Events,
                                 "store" => TokenType::Store,
+                                "let" => TokenType::Let,
                                 "link" => TokenType::Link,
                                 "new" => TokenType::New,
                                 "not" => TokenType::Not,

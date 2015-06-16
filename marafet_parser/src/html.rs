@@ -47,6 +47,7 @@ pub enum Expression {
     Sub(Box<Expression>, Box<Expression>),
     Comparison(Comparator, Box<Expression>, Box<Expression>),
     Call(Box<Expression>, Vec<Expression>),
+    Dict(Vec<(String, Expression)>),
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +81,7 @@ pub enum Statement {
     Format(Vec<Fmt>),
     Output(Expression),
     Store(String, Expression),
+    Let(String, Expression),
     Link(Vec<Link>),
     Condition(Vec<(Expression, Vec<Statement>)>, Option<Vec<Statement>>),
     ForOf(String, Expression, Vec<Statement>),
@@ -258,6 +260,18 @@ fn call<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     })
     .parse_state(input)
 }
+fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Expression, I>
+{
+    between(lift(Tok::OpenBrace), lift(Tok::CloseBrace),
+        sep_by::<Vec<_>, _, _>(lift(Tok::String).or(lift(Tok::Ident))
+               .map(ParseToken::into_string)
+               .skip(lift(Tok::Colon))
+               .and(parser(expression)),
+               lift(Tok::Comma)))
+    .map(Expression::Dict)
+    .parse_state(input)
+}
 fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
@@ -268,6 +282,9 @@ fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
         .map(ParseToken::unescape).map(Expression::Str))
     .or(lift(Tok::Number)
         .map(ParseToken::into_string).map(Expression::Num))
+    .or(parser(dict))
+    .or(between(lift(Tok::OpenParen), lift(Tok::CloseParen),
+                parser(expression)))
     .parse_state(input)
 }
 
@@ -358,6 +375,17 @@ fn store<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .skip(lift(Tok::Equals))
     .and(parser(expression)).skip(lift(Tok::Newline))
     .map(|(name, value)| Statement::Store(name, value))
+    .parse_state(input)
+}
+
+fn let_var<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Statement, I>
+{
+    lift(Tok::Let)
+    .with(lift(Tok::Ident).map(ParseToken::into_string))
+    .skip(lift(Tok::Equals))
+    .and(parser(expression)).skip(lift(Tok::Newline))
+    .map(|(name, value)| Statement::Let(name, value))
     .parse_state(input)
 }
 
@@ -477,6 +505,7 @@ fn statement<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     parser(element)
     .or(parser(literal))
     .or(parser(store))
+    .or(parser(let_var))
     .or(parser(link))
     .or(parser(condition))
     .or(parser(iteration))
