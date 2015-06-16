@@ -3,7 +3,7 @@ use std::io::{Write};
 use parser::html;
 use parser::html::Expression as Expr;
 use parser::html::Statement as Stmt;
-use parser::html::{Link, LinkDest, Fmt};
+use parser::html::{Fmt};
 use parser::html::Statement::{Element, Store, Condition, Output};
 use parser::{Ast, Block};
 use util::join;
@@ -125,87 +125,98 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         }
         Expression::Object(rattrs)
     }
-    fn element(&self, st: &html::Statement) -> Expression {
-        match st {
-            &Element { ref name, ref classes, ref body, ref attributes } => {
-                let mut properties = vec![
-                        (String::from("tag"), Expression::Str(name.clone())),
-                ];
-                let mut statements = vec![];
-                let mut events = vec![];
-                for item in body.iter() {
-                    match item {
-                        &Store(ref name, ref value) => {
-                            let prop = String::from("store_") +name;
-                            statements.push(Statement::Var(name.clone(),
-                                E::Or(
-                                    Box::new(E::And(
-                                        Box::new(E::Name(String::from("old_node"))),
-                                        Box::new(E::Attr(Box::new(
-                                                E::Name(String::from("old_node"))),
-                                                prop.clone())))),
-                                    Box::new(self.compile_expr(value)))));
-                            properties.push((prop, E::Name(name.clone())));
-                        }
-                        &Stmt::Link(ref links) => {
-                            for lnk in links {
-                                match lnk {
-                                    &Link::One(ref s, LinkDest::Stream(ref expr)) => {
-                                        events.push((s.clone(),
-                                            E::Attr(Box::new(self.compile_expr(expr)),
-                                                String::from("handle_event")),
-                                            ));
-                                    }
-                                    &Link::Multi(ref names, LinkDest::Stream(ref expr)) => {
-                                        let v = format!("_stream_{}",
-                                            statements.len());
-                                        statements.push(Statement::Var(
-                                            v.clone(),
-                                            self.compile_expr(expr)));
-                                        for &(ref attr, ref event) in names {
-                                            events.push((
-                                                event.as_ref().unwrap_or(attr)
-                                                    .clone(),
-                                                E::Attr(
-                                                    Box::new(E::Attr(
-                                                        Box::new(E::Name(v.clone())),
-                                                        attr.clone())),
-                                                    String::from("handle_event"))));
-                                        }
-                                    }
-                                    &Link::One(_, LinkDest::Mapping(_, _)) => unimplemented!(),
-                                    &Link::Multi(_, LinkDest::Mapping(_, _)) => unimplemented!(),
+    fn element(&self, name: &String,
+        classes: &Vec<(String, Option<Expr>)>,
+        attributes: &Vec<(String, Expr)>,
+        body: &Vec<Stmt>)
+        -> Expression
+    {
+        use parser::html::Link as L;
+        use parser::html::LinkDest as D;
+
+        let mut properties = vec![
+                (String::from("tag"), Expression::Str(name.clone())),
+        ];
+        let mut statements = vec![];
+        let mut events = vec![];
+        for item in body.iter() {
+            match item {
+                &Store(ref name, ref value) => {
+                    let prop = String::from("store_") +name;
+                    statements.push(Statement::Var(name.clone(),
+                        E::Or(
+                            Box::new(E::And(
+                                Box::new(E::Name(String::from("old_node"))),
+                                Box::new(E::Attr(Box::new(
+                                        E::Name(String::from("old_node"))),
+                                        prop.clone())))),
+                            Box::new(self.compile_expr(value)))));
+                    properties.push((prop, E::Name(name.clone())));
+                }
+                &Stmt::Link(ref links) => {
+                    for lnk in links {
+                        match lnk {
+                            &L::One(ref s, D::Stream(ref expr)) => {
+                                events.push((s.clone(),
+                                    E::Attr(Box::new(self.compile_expr(expr)),
+                                        String::from("handle_event")),
+                                    ));
+                            }
+                            &L::Multi(ref names, D::Stream(ref expr)) => {
+                                let v = format!("_stream_{}",
+                                    statements.len());
+                                statements.push(Statement::Var(
+                                    v.clone(),
+                                    self.compile_expr(expr)));
+                                for &(ref attr, ref event) in names {
+                                    events.push((
+                                        event.as_ref().unwrap_or(attr)
+                                            .clone(),
+                                        E::Attr(
+                                            Box::new(E::Attr(
+                                                Box::new(E::Name(v.clone())),
+                                                attr.clone())),
+                                            String::from("handle_event"))));
                                 }
                             }
+                            &L::One(_, D::Mapping(_, _)) => unimplemented!(),
+                            &L::Multi(_, D::Mapping(_, _)) => unimplemented!(),
                         }
-                        _ => {}
                     }
                 }
-                if classes.len() > 0 || attributes.len() > 0 {
-                    properties.push(
-                        (String::from("attrs"),
-                            self.attrs(name, classes, attributes)));
-                }
-                if body.len() > 0 {
-                    properties.push(
-                        (String::from("children"), self.fragment(&body)));
-                }
-                if events.len() > 0 {
-                    properties.push(
-                        (String::from("events"), Expression::Object(events)));
-                }
-                if statements.len() > 0 {
-                    statements.push(
-                        Statement::Return(Expression::Object(properties)));
-                    return Expression::Function(None,
-                        vec![Param {
-                            name: String::from("old_node"),
-                            default_value: None,
-                        }],
-                        statements);
-                } else {
-                    return Expression::Object(properties);
-                }
+                _ => {}
+            }
+        }
+        if classes.len() > 0 || attributes.len() > 0 {
+            properties.push(
+                (String::from("attrs"),
+                    self.attrs(name, classes, attributes)));
+        }
+        if body.len() > 0 {
+            properties.push(
+                (String::from("children"), self.fragment(&body)));
+        }
+        if events.len() > 0 {
+            properties.push(
+                (String::from("events"), Expression::Object(events)));
+        }
+        if statements.len() > 0 {
+            statements.push(
+                Statement::Return(Expression::Object(properties)));
+            return Expression::Function(None,
+                vec![Param {
+                    name: String::from("old_node"),
+                    default_value: None,
+                }],
+                statements);
+        } else {
+            return Expression::Object(properties);
+        }
+    }
+    fn statement(&self, st: &html::Statement) -> Expression {
+        match st {
+            &Element { ref name, ref classes, ref body, ref attributes } => {
+                self.element(name, classes, attributes, body)
             }
             &Stmt::Format(ref value) => {
                 self.compile_format(value)
@@ -224,6 +235,16 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                         Box::new(old),
                     ))
             }
+            &Stmt::ForOf(ref name, ref expr, ref body) => {
+                let expr = self.compile_expr(expr);
+                Expression::Call(
+                    Box::new(Expression::Attr(
+                        Box::new(expr),
+                        String::from("map"))),
+                    vec![Expression::Function(None,
+                        vec![Param {name: name.clone(), default_value: None}],
+                        vec![Statement::Return(self.fragment(body))])])
+            }
             &Stmt::Store(_, _) => unreachable!(),  // not an actual child
             &Stmt::Link(_) => unreachable!(),  // not an actual child
         }
@@ -234,13 +255,13 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             _ => true,
             }).collect::<Vec<_>>();
         if statements.len() == 1 {
-            return self.element(&statements[0]);
+            return self.statement(&statements[0]);
         } else {
             return Expression::Object(vec![(
                 String::from("children"),
                 Expression::List(
                     stmt.iter()
-                    .map(|s| self.element(s))
+                    .map(|s| self.statement(s))
                     .collect())
                 )]);
         }

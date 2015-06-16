@@ -82,6 +82,7 @@ pub enum Statement {
     Store(String, Expression),
     Link(Vec<Link>),
     Condition(Vec<(Expression, Vec<Statement>)>, Option<Vec<Statement>>),
+    ForOf(String, Expression, Vec<Statement>),
 }
 
 
@@ -263,8 +264,6 @@ fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     parser(call)
     .or(lift(Tok::New).with(parser(call))
         .map(|x| Expression::New(Box::new(x))))
-    .or(lift(Tok::Not).with(parser(call))
-        .map(|x| Expression::Not(Box::new(x))))
     .or(lift(Tok::String)
         .map(ParseToken::unescape).map(Expression::Str))
     .or(lift(Tok::Number)
@@ -301,43 +300,43 @@ fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 pub fn comparison<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
-    parser(sum).and(optional(many(choice([
+    parser(sum).and(many(choice([
         lift(Tok::Eq),
         lift(Tok::NotEq),
         lift(Tok::Less),
         lift(Tok::LessEq),
         lift(Tok::Greater),
         lift(Tok::GreaterEq),
-        ]).and(parser(sum)))))
-    .map(|(expr, opt_tails): (Expression, Option<Vec<(_, Expression)>>)| {
+        ]).and(parser(sum))))
+    .map(|(expr, tails): (Expression, Vec<(_, Expression)>)| {
         let mut expr = expr;
         let mut prev = expr.clone();
-        if let Some(tail) = opt_tails {
-            for ((tok, _, _), value) in tail {
-                let comp = match tok {
-                    Tok::Eq => Comparator::Eq,
-                    Tok::NotEq => Comparator::NotEq,
-                    Tok::Less => Comparator::Less,
-                    Tok::LessEq => Comparator::LessEq,
-                    Tok::Greater => Comparator::Greater,
-                    Tok::GreaterEq => Comparator::GreaterEq,
-                    _ => unreachable!(),
-                };
-                expr = Expression::Comparison(comp,
-                    Box::new(prev),
-                    Box::new(value.clone()));
-                prev = value;
-            }
+        for ((tok, _, _), value) in tails.into_iter() {
+            let comp = match tok {
+                Tok::Eq => Comparator::Eq,
+                Tok::NotEq => Comparator::NotEq,
+                Tok::Less => Comparator::Less,
+                Tok::LessEq => Comparator::LessEq,
+                Tok::Greater => Comparator::Greater,
+                Tok::GreaterEq => Comparator::GreaterEq,
+                _ => unreachable!(),
+            };
+            expr = Expression::Comparison(comp,
+                Box::new(prev),
+                Box::new(value.clone()));
+            prev = value;
         }
         return expr;
     })
     .parse_state(input)
 }
+
 pub fn boolean<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
-    let not = lift(Tok::Not).with(parser(comparison))
-                .or(parser(comparison));
+    let not = parser(comparison)
+        .or(lift(Tok::Not).with(parser(comparison))
+            .map(Box::new).map(Expression::Not));
     let and = chainl1(not, lift(Tok::And)
         .map(|_| |a, b| Expression::And(Box::new(a), Box::new(b))));
     let mut or = chainl1(and, lift(Tok::Or)
@@ -446,6 +445,22 @@ fn condition<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
+fn iteration<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Statement, I>
+{
+    lift(Tok::For)
+    .with(lift(Tok::Ident))
+    .skip(lift(Tok::Of))
+    .and(parser(expression))
+    .skip(lift(Tok::Colon))
+    .skip(lift(Tok::Newline))
+    .and(parser(chunk))
+    .map(|((name, array), opt_body)| Statement::ForOf(
+        name.into_string(), array,
+        opt_body.unwrap_or(vec!())))
+    .parse_state(input)
+}
+
 fn output<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Statement, I>
 {
@@ -464,6 +479,7 @@ fn statement<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .or(parser(store))
     .or(parser(link))
     .or(parser(condition))
+    .or(parser(iteration))
     .or(parser(output))
     .parse_state(input)
 }
