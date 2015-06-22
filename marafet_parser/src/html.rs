@@ -46,6 +46,7 @@ pub enum Expression {
     Add(Box<Expression>, Box<Expression>),
     Sub(Box<Expression>, Box<Expression>),
     Comparison(Comparator, Box<Expression>, Box<Expression>),
+    Item(Box<Expression>, Box<Expression>),
     Call(Box<Expression>, Vec<Expression>),
     Dict(Vec<(String, Expression)>),
 }
@@ -244,20 +245,27 @@ fn expr_params<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 fn call<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
-    lift(Tok::Ident).map(ParseToken::into_string)
-    .and(many::<Vec<_>, _>(lift(Tok::Dot)
-        .with(lift(Tok::Ident).map(ParseToken::into_string))))
-    .map(|(head, tail)| {
-        tail.iter().fold(Expression::Name(head),
-            |expr, name| Expression::Attr(Box::new(expr), name.clone()))
-    })
-    .and(parser(expr_params))
-    .map(|(mut expr, opt_paren)| {
-        if let Some(paren) = opt_paren {
-            expr = Expression::Call(Box::new(expr), paren);
-        }
-        expr
-    })
+    enum Sub {
+        GetAttr(String),
+        GetItem(Expression),
+        Call(Vec<Expression>),
+    }
+    parser(atom)
+    .and(many(
+        lift(Tok::Dot).with(lift(Tok::Ident))
+            .map(ParseToken::into_string).map(Sub::GetAttr)
+        .or(between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
+                    parser(expression)).map(Sub::GetItem))
+        .or(between(lift(Tok::OpenParen), lift(Tok::CloseParen),
+                    sep_by::<Vec<_>, _, _>(parser(expression),
+                                           lift(Tok::Comma))
+                    .map(Sub::Call)))))
+    .map(|(expr, suffixes)|
+        suffixes.into_iter().fold(expr, |expr, sub| match sub {
+            Sub::GetAttr(x) => Expression::Attr(Box::new(expr), x),
+            Sub::GetItem(x) => Expression::Item(Box::new(expr), Box::new(x)),
+            Sub::Call(x) => Expression::Call(Box::new(expr), x),
+        }))
     .parse_state(input)
 }
 fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
@@ -275,8 +283,8 @@ fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
-    parser(call)
-    .or(lift(Tok::New).with(parser(call))
+    parser(lift(Tok::Ident))
+    .or(lift(Tok::New).with(parser(expression))
         .map(|x| Expression::New(Box::new(x))))
     .or(lift(Tok::String)
         .map(ParseToken::unescape).map(Expression::Str))
@@ -308,7 +316,7 @@ fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
                  .or(lift(Tok::Divide).map(|_| divide as ChainFun));
     let sum = lift(Tok::Plus).map(|_| add as ChainFun)
               .or(lift(Tok::Dash).map(|_| subtract as ChainFun));
-    let factor = chainl1(parser(atom), factor);
+    let factor = chainl1(parser(call), factor);
     chainl1(factor, sum)
     .parse_state(input)
 }
