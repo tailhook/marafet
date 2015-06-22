@@ -28,6 +28,7 @@ pub enum Expression {
     List(Vec<Expression>),
     Name(String),
     Attr(Box<Expression>, String),
+    Item(Box<Expression>, Box<Expression>),
     Call(Box<Expression>, Vec<Expression>),
     Function(Option<String>, Vec<Param>, Vec<Statement>),
     AssignAttr(Box<Expression>, String, Box<Expression>),

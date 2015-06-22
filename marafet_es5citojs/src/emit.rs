@@ -83,6 +83,12 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 try!(self.emit_expression(parent, indent));
                 try!(write!(self.buf, ".{}", attr));
             }
+            &Expression::Item(ref parent, ref item) => {
+                try!(self.emit_expression(parent, indent));
+                try!(write!(self.buf, "["));
+                try!(self.emit_expression(item, indent));
+                try!(write!(self.buf, "]"));
+            }
             &Expression::Call(ref parent, ref args) => {
                 try!(self.emit_expression(parent, indent));
                 try!(self.buf.write_all(b"("));

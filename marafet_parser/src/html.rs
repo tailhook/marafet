@@ -231,17 +231,6 @@ fn literal<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn expr_params<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Option<Vec<Expression>>, I>
-{
-    optional(lift(Tok::OpenParen)
-        .with(sep_by::<Vec<_>, _, _>(
-            parser(expression),
-            lift(Tok::Comma)))
-        .skip(lift(Tok::CloseParen)))
-    .parse_state(input)
-}
-
 fn call<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
@@ -251,7 +240,7 @@ fn call<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
         Call(Vec<Expression>),
     }
     parser(atom)
-    .and(many(
+    .and(many::<Vec<_>,_>(
         lift(Tok::Dot).with(lift(Tok::Ident))
             .map(ParseToken::into_string).map(Sub::GetAttr)
         .or(between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
@@ -283,7 +272,7 @@ fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
-    parser(lift(Tok::Ident))
+    lift(Tok::Ident).map(ParseToken::into_string).map(Expression::Name)
     .or(lift(Tok::New).with(parser(expression))
         .map(|x| Expression::New(Box::new(x))))
     .or(lift(Tok::String)

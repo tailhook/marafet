@@ -39,6 +39,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
             &Expr::Attr(ref expr, ref value)
             => Expression::Attr(Box::new(self.compile_expr(expr)),
                                 value.clone()),
+            &Expr::Item(ref expr, ref item)
+            => Expression::Item(Box::new(self.compile_expr(expr)),
+                                Box::new(self.compile_expr(item))),
             &Expr::Call(ref expr, ref args)
             => Expression::Call(Box::new(self.compile_expr(expr)),
                 args.iter().map(|x| self.compile_expr(x)).collect()),
