@@ -14,6 +14,7 @@ mod emit;
 mod code;
 mod css;
 mod amd;
+mod element;
 
 
 pub struct Settings<'a> {
