@@ -55,6 +55,16 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                                         prop.clone())))),
                             Box::new(self.compile_expr(value)))));
                     properties.push((prop, E::Name(name.clone())));
+                    events.entry(String::from("$destroyed"))
+                    .or_insert(vec!()).push(
+                        E::Ternary(
+                            Box::new(attr(E::Name(name.clone()),
+                                "owner_destroyed")),
+                            Box::new(attr(
+                                attr(E::Name(name.clone()), "owner_destroyed"),
+                                "handle_event")),
+                            Box::new(E::Function(None, vec![], vec![])),
+                        ));
                 }
                 &Stmt::Link(ref links) => {
                     for lnk in links {
