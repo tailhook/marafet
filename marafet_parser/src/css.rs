@@ -1,6 +1,7 @@
 use parser_combinators::primitives::{Stream, State, Parser};
 use parser_combinators::{ParseResult, parser};
 use parser_combinators::combinator::{optional, ParserExt, sep_by, many};
+use parser_combinators::combinator::{between};
 
 use super::Block;
 use super::token::{Token, ParseToken};
@@ -12,6 +13,7 @@ use util::join;
 pub struct Selector {
     pub element: Option<String>,
     pub classes: Vec<String>,
+    pub state: Option<String>,
     // TODO(tailhook) implement other selectors
 }
 
@@ -30,21 +32,11 @@ pub struct Param {
 fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Param, I>
 {
-    lift(Tok::Ident).and(optional(lift(Tok::Equals).with(lift(Tok::String))))
+    lift(Tok::CssWord).and(optional(lift(Tok::Equals).with(lift(Tok::String))))
             .map(|((_, name, _), opt)| Param {
                 name: String::from(name),
                 default_value: opt.map(|x| String::from(x.1)),
             })
-    .parse_state(input)
-}
-
-fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<String, I>
-{
-    sep_by::<Vec<_>, _, _>(
-        lift(Tok::Ident).or(lift(Tok::Number)),
-        lift(Tok::Dash),
-    ).map(|names| join(names.into_iter().map(|(_, val, _)| val), "-"))
     .parse_state(input)
 }
 
@@ -53,12 +45,17 @@ fn property_value<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     // TODO(tailhook) add numbers slashes and other things
     many::<Vec<_>, _>(
-        lift(Tok::Ident).or(lift(Tok::Number))
-        .and(many::<Vec<_>, _>(
-              lift(Tok::Dash).with(lift(Tok::Ident).or(lift(Tok::Number))))
-        ).map(|(prefix, names)|
-            join(vec![prefix].into_iter().chain(names.into_iter())
-                 .map(|(_, val, _)| val), "-"))
+        lift(Tok::CssWord).map(ParseToken::into_string)
+            .and(optional(
+                between(lift(Tok::OpenParen), lift(Tok::CloseParen),
+                    parser(property_value))))
+        .map(|(word, opt_brackets)| {
+            if let Some(expr) = opt_brackets {
+                format!("{}({})", word, expr)
+            } else {
+                word
+            }
+        }).or(lift(Tok::Comma).map(ParseToken::into_string))
     ).map(|names| join(names.into_iter(), " "))
     .parse_state(input)
 }
@@ -66,11 +63,16 @@ fn property_value<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 fn selector<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Selector, I>
 {
-    optional(lift(Tok::Ident).map(ParseToken::into_string))
-        .and(many::<Vec<_>, _>(lift(Tok::Dot).with(parser(dash_name))))
-    .map(|(element, classes)| Selector {
+    optional(lift(Tok::CssWord).map(ParseToken::into_string))
+        .and(many::<Vec<_>, _>(
+            lift(Tok::Dot).with(lift(Tok::CssWord)
+                .map(ParseToken::into_string))))
+        .and(optional(lift(Tok::Colon)
+            .with(lift(Tok::CssWord).map(ParseToken::into_string))))
+    .map(|((element, classes), opt_state)| Selector {
         element: element,
         classes: classes,
+        state: opt_state,
     })
     .parse_state(input)
 }
@@ -85,7 +87,7 @@ fn rule<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .and(optional(
         lift(Tok::Indent)
         .with(many::<Vec<_>, _>(
-            parser(dash_name)
+            lift(Tok::CssWord).map(ParseToken::into_string)
             .skip(lift(Tok::Colon))
             .and(optional(parser(property_value)))
             .skip(lift(Tok::Newline))
@@ -98,7 +100,6 @@ fn rule<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
             properties: properties.unwrap_or(vec!())
                 .into_iter()
                 .map(|(key, val)| (key, val.unwrap_or(String::new())))
-                //.map(|key| (key.clone(), key))
                 .collect(),
         }
     })

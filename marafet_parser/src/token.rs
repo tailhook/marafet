@@ -50,6 +50,7 @@ pub enum TokenType {
     CloseBracket,   // ]
     CloseBrace,     // }
     Ident,
+    CssWord,
     Number,
     String,
     Newline,
@@ -129,6 +130,7 @@ impl TokenType {
             TokenType::CloseBracket => Info::Borrowed("]"),
             TokenType::CloseBrace => Info::Borrowed("}"),
             TokenType::Ident => Info::Borrowed("identifier"),
+            TokenType::CssWord => Info::Borrowed("css word or identifier"),
             TokenType::Number => Info::Borrowed("number"),
             TokenType::String => Info::Borrowed("quoted string"),
             TokenType::Newline => Info::Borrowed("new line"),

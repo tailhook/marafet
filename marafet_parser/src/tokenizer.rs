@@ -67,6 +67,11 @@ impl <'a> CodeIter<'a> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Mode {
+    Normal,
+    Css
+}
 
 #[derive(Clone)]
 pub struct Tokenizer<'a> {
@@ -74,6 +79,7 @@ pub struct Tokenizer<'a> {
     iter: CodeIter<'a>,
     braces: Vec<char>,
     indents: Vec<usize>,
+    mode: Mode,
 }
 
 impl<'a> Tokenizer<'a> {
@@ -91,6 +97,7 @@ impl<'a> Tokenizer<'a> {
                 },
             braces: vec!(),
             indents: vec!(0),
+            mode: Mode::Normal,
         };
     }
 }
@@ -215,7 +222,40 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 return None;
                             }
                         }
+                        'a'...'z'|'A'...'Z'|'_'|'-'|'0'...'9'
+                        if self.mode == Mode::Css => {
+                            let mut offset = self.data.len();
+                            loop {
+                                match self.iter.peek() {
+                                    Some((x, off, _, _)) => {
+                                        match x {
+                                            'a'...'z'|'A'...'Z'
+                                            |'0'...'9'|'_'|'-'|'.'
+                                            => {}
+                                            _ => {
+                                                offset = off;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    None => break,
+                                }
+                                self.iter.next();
+                            }
+                            let value = &self.data[off..offset];
+                            match value {
+                                "html" if column == 1 => {
+                                    self.mode = Mode::Normal;
+                                    return Some((TokenType::Html, value, pos));
+                                }
+                                _ => {
+                                    return Some((TokenType::CssWord,
+                                                 value, pos));
+                                }
+                            }
+                        }
                         ':'|'.'|'='|','|'-'|'+'|'*'|'/'|'?'|'>'|'<'|'!' => {
+                            let mut len = 1;
                             let typ = match ch {
                                 '+' => TokenType::Plus,
                                 '*' => TokenType::Multiply,
@@ -227,6 +267,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     match self.iter.peek() {
                                         Some(('=', _, _, _)) => {
                                             self.iter.next();
+                                            len = 2;
                                             TokenType::Eq
                                         }
                                         _ => TokenType::Equals,
@@ -236,6 +277,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     match self.iter.peek() {
                                         Some(('=', _, _, _)) => {
                                             self.iter.next();
+                                            len = 2;
                                             TokenType::NotEq
                                         }
                                         _ => TokenType::Not, //TODO remove?
@@ -245,6 +287,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     match self.iter.peek() {
                                         Some(('=', _, _, _)) => {
                                             self.iter.next();
+                                            len = 2;
                                             TokenType::GreaterEq
                                         }
                                         _ => TokenType::Greater,
@@ -254,6 +297,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     match self.iter.peek() {
                                         Some(('=', _, _, _)) => {
                                             self.iter.next();
+                                            len = 2;
                                             TokenType::LessEq
                                         }
                                         _ => TokenType::Less,
@@ -263,6 +307,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     match self.iter.peek() {
                                         Some(('>', _, _, _)) => {
                                             self.iter.next();
+                                            len = 2;
                                             TokenType::ArrowRight
                                         }
                                         _ => TokenType::Dash,
@@ -272,7 +317,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 _ => unreachable!(),
                             };
                             return Some((typ,
-                                &self.data[off..self.iter.offset],
+                                &self.data[off..off+len],
                                 pos));
                         }
                         '#' => {
@@ -312,7 +357,8 @@ impl<'a> Iterator for Tokenizer<'a> {
                         ' '|'\t' => {  // Skip whitespace
                             continue;
                         }
-                        'a'...'z'|'A'...'Z'|'_' => {
+                        'a'...'z'|'A'...'Z'|'_'
+                        if self.mode == Mode::Normal => {
                             let mut offset = self.data.len();
                             loop {
                                 match self.iter.peek() {
@@ -332,7 +378,12 @@ impl<'a> Iterator for Tokenizer<'a> {
                             }
                             let value = &self.data[off..offset];
                             let tok = match value {
-                                "css" => TokenType::Css,
+                                "css" => {
+                                    if column == 1 {
+                                        self.mode = Mode::Css;
+                                    }
+                                    TokenType::Css
+                                }
                                 "html" => TokenType::Html,
                                 "import" => TokenType::Import,
                                 "from" => TokenType::From,
@@ -361,9 +412,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 match self.iter.peek() {
                                     Some((x, off, _, _)) => {
                                         match x {
-                                            'a'...'z'|'A'...'Z'
-                                            |'0'...'9'|'_'|'.'
-                                            => {}
+                                            '0'...'9'|'_'|'.' => {}
                                             _ => {
                                                 offset = off;
                                                 break;

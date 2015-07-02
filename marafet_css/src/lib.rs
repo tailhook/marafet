@@ -33,6 +33,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         for cls in sel.classes.iter() {
             write!(&mut buf, ".{}", cls).unwrap();
         }
+        if let Some(ref state) = sel.state {
+            write!(&mut buf, ":{}", state).unwrap();
+        }
         return String::from_utf8(buf).unwrap();
     }
 
