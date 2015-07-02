@@ -10,6 +10,42 @@ pub trait Emit {
     fn emit(&mut self, code: &Code) -> Result<()>;
 }
 
+fn write_str<W:Write, S: AsRef<str>>(w: &mut W, val: S) -> Result<()> {
+    try!(w.write_all(b"\""));
+    for ch in val.as_ref().chars() {
+        match ch {
+            '\r' => { try!(write!(w, "\\r")); }
+            '\n' => { try!(write!(w, "\\n")); }
+            '\t' => { try!(write!(w, "\\t")); }
+            '\"' => { try!(write!(w, "\\\"")); }
+            '\'' => { try!(write!(w, "\\\'")); }
+            '\x00'...'\x1f' => { try!(write!(w, "\\x{:02}", ch as u8)) }
+            _ => { try!(write!(w, "{}", ch)) }
+        }
+    }
+    try!(w.write_all(b"\""));
+    Ok(())
+}
+
+fn is_ident<S: AsRef<str>>(s: S) -> bool {
+    let s = s.as_ref();
+    if s.len() == 0 {
+        return false;
+    }
+    let mut iter = s.chars();
+    match iter.next().unwrap() {
+        'a'...'z'|'A'...'Z'|'_' => {},
+        _ => return false,
+    }
+    for ch in iter {
+        match ch {
+            'a'...'z'|'A'...'Z'|'0'...'9'|'_' => {}
+            _ => return false,
+        }
+    }
+    return true;
+}
+
 impl<'a, W:Write+'a> Generator<'a, W> {
     fn write_indent(&mut self, indent: u32) -> Result<()> {
         // TODO(tailhook) Is there a beter way ?
@@ -24,20 +60,7 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         let nindent = self.indent + indent;
         match expr {
             &Expression::Str(ref s) => {
-                try!(self.buf.write_all(b"\""));
-                for ch in s.chars() {
-                    match ch {
-                        '\r' => { try!(write!(self.buf, "\\r")); }
-                        '\n' => { try!(write!(self.buf, "\\n")); }
-                        '\t' => { try!(write!(self.buf, "\\t")); }
-                        '\"' => { try!(write!(self.buf, "\\\"")); }
-                        '\'' => { try!(write!(self.buf, "\\\'")); }
-                        '\x00'...'\x1f' => { try!(write!(self.buf, "\\x{:02}",
-                                                         ch as u8)) }
-                        _ => { try!(write!(self.buf, "{}", ch)) }
-                    }
-                }
-                try!(self.buf.write_all(b"\""));
+                try!(write_str(self.buf, &s[..]));
             }
             &Expression::Num(ref s) => {
                 try!(write!(self.buf, "{}", s));
@@ -46,13 +69,23 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 try!(self.buf.write_all(b"{"));
                 if pairs.len() == 0 {
                 } else if pairs.len() == 1 {
-                    try!(write!(self.buf, "{}: ", pairs[0].0));
+                    if is_ident(&pairs[0].0[..]) {
+                        try!(write!(self.buf, "{}: ", pairs[0].0));
+                    } else {
+                        try!(write_str(self.buf, &pairs[0].0));
+                        try!(write!(self.buf, ": "));
+                    }
                     try!(self.emit_expression(&pairs[0].1, indent));
                 } else {
                     try!(self.buf.write_all(b"\n"));
                     for &(ref key, ref value) in pairs.iter() {
                         try!(self.write_indent(nindent));
-                        try!(write!(self.buf, "{}: ", key));
+                        if is_ident(&key[..]) {
+                            try!(write!(self.buf, "{}: ", key));
+                        } else {
+                            try!(write_str(self.buf, key));
+                            try!(write!(self.buf, ": "));
+                        }
                         try!(self.emit_expression(value, nindent));
                         try!(self.buf.write_all(b",\n"));
                     }

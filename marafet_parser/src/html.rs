@@ -140,8 +140,7 @@ fn attributes<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 {
     optional(lift(Tok::OpenBracket)
         .with(sep_by::<Vec<_>, _, _>(
-            lift(Tok::Ident)
-                .map(ParseToken::into_string)
+            parser(dash_name)
                 .skip(lift(Tok::Equals))
                 .and(lift(Tok::String)
                     .map(parse_format_string)
