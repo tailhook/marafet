@@ -261,11 +261,12 @@ fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
     between(lift(Tok::OpenBrace), lift(Tok::CloseBrace),
-        sep_by::<Vec<_>, _, _>(lift(Tok::String).or(lift(Tok::Ident))
-               .map(ParseToken::into_string)
-               .skip(lift(Tok::Colon))
-               .and(parser(expression)),
-               lift(Tok::Comma)))
+        sep_by::<Vec<_>, _, _>(
+            lift(Tok::String).map(ParseToken::unescape)
+            .or(lift(Tok::Ident).map(ParseToken::into_string))
+           .skip(lift(Tok::Colon))
+           .and(parser(expression)),
+           lift(Tok::Comma)))
     .map(Expression::Dict)
     .parse_state(input)
 }
