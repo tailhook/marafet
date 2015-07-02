@@ -66,6 +66,10 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 .map(|&(ref name, ref expr)|
                     (name.clone(), self.compile_expr(expr)))
                 .collect()),
+            &Expr::List(ref items)
+            => Expression::List(items.iter()
+                .map(|expr| self.compile_expr(expr))
+                .collect()),
         }
     }
     fn compile_format(&self, items: &Vec<Fmt>) -> Expression

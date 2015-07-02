@@ -49,6 +49,7 @@ pub enum Expression {
     Item(Box<Expression>, Box<Expression>),
     Call(Box<Expression>, Vec<Expression>),
     Dict(Vec<(String, Expression)>),
+    List(Vec<Expression>),
 }
 
 #[derive(Debug, Clone)]
@@ -269,6 +270,14 @@ fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .map(Expression::Dict)
     .parse_state(input)
 }
+fn list<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
+    -> ParseResult<Expression, I>
+{
+    between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
+        sep_by::<Vec<_>, _, _>(parser(expression), lift(Tok::Comma)))
+    .map(Expression::List)
+    .parse_state(input)
+}
 fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Expression, I>
 {
@@ -280,6 +289,7 @@ fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .or(lift(Tok::Number)
         .map(ParseToken::into_string).map(Expression::Num))
     .or(parser(dict))
+    .or(parser(list))
     .or(between(lift(Tok::OpenParen), lift(Tok::CloseParen),
                 parser(expression)))
     .parse_state(input)
