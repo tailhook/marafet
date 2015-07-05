@@ -10,6 +10,7 @@ use super::ast::{Statement, Param, Expression};
 use super::ast::Expression as E;
 use super::ast::Statement as S;
 
+
 fn attr<'x, S: AsRef<str>>(e: Expression, v: S) -> Expression {
     E::Attr(Box::new(e), v.as_ref().to_string())
 }
@@ -17,12 +18,26 @@ fn attr<'x, S: AsRef<str>>(e: Expression, v: S) -> Expression {
 
 impl<'a, W:Write+'a> Generator<'a, W> {
 
-    fn event_func(&self, e: &Expr) -> Expression {
-        // TODO(tailhook) add conditional ev(event) parameter
-        E::Function(None, vec![], vec![
-            S::Return(self.compile_expr(e)),
-        ])
+    fn compile_link(&self, expr: Expression,
+        filter: &Option<Expr>, map: Option<&Expr>)
+        -> Expression
+    {
+        let mut e = expr;
+        if let Some(map) = map {
+            let ev = Param { name: String::from("ev"), default_value: None };
+            let func = E::Function(None, vec![ev], vec![
+                S::Return(self.compile_expr(map))]);
+            e = E::Call(Box::new(attr(e, "map")), vec![func]);
+        }
+        if let &Some(ref filt) = filter {
+            let ev = Param { name: String::from("ev"), default_value: None };
+            let func = E::Function(None, vec![ev], vec![
+                S::Return(self.compile_expr(filt))]);
+            e = E::Call(Box::new(attr(e, "filter")), vec![func]);
+        }
+        attr(e, "handle_event")
     }
+
 
     pub fn element(&self, name: &String,
         classes: &Vec<(String, Option<Expr>)>,
@@ -69,11 +84,11 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                 &Stmt::Link(ref links) => {
                     for lnk in links {
                         match lnk {
-                            &L::One(ref s, D::Stream(ref expr)) => {
+                            &L::One(ref s, ref f, D::Stream(ref expr)) => {
                                 events.entry(s.clone()).or_insert(vec!()).push(
-                                    E::Attr(Box::new(self.compile_expr(expr)),
-                                        String::from("handle_event")),
-                                    );
+                                    self.compile_link(
+                                        self.compile_expr(expr),
+                                        f, None));
                             }
                             &L::Multi(ref names, D::Stream(ref expr)) => {
                                 let v = format!("_stream_{}",
@@ -81,23 +96,20 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                                 statements.push(Statement::Var(
                                     v.clone(),
                                     self.compile_expr(expr)));
-                                for &(ref aname, ref ename) in names {
+                                for &(ref aname, ref flt, ref ename) in names {
                                     let ev = ename.as_ref()
                                              .unwrap_or(aname).clone();
                                     events.entry(ev.clone()).or_insert(vec!())
-                                        .push(attr(
+                                        .push(self.compile_link(
                                             attr(E::Name(v.clone()), &aname),
-                                            "handle_event"));
+                                            flt, None));
                                 }
                             }
-                            &L::One(ref s, D::Mapping(ref val, ref dest)) => {
+                            &L::One(ref s, ref f, D::Mapping(ref val, ref dst))
+                            => {
                                 events.entry(s.clone()).or_insert(vec!()).push(
-                                    attr(
-                                    E::Call(Box::new(
-                                        attr(self.compile_expr(dest), "map")),
-                                        vec![ self.event_func(val) ]),
-                                    "handle_event",
-                                ));
+                                    self.compile_link(
+                                        self.compile_expr(dst), f, Some(val)));
                             }
                             &L::Multi(ref names, D::Mapping(ref val, ref dest))
                             => {
@@ -106,17 +118,13 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                                 statements.push(Statement::Var(
                                     v.clone(),
                                     self.compile_expr(dest)));
-                                for &(ref aname, ref event) in names {
+                                for &(ref aname, ref flt, ref event) in names {
                                     let ename = event.as_ref()
                                              .unwrap_or(aname).clone();
                                     events.entry(ename).or_insert(vec!()).push(
-                                        attr(
-                                        E::Call(Box::new(attr(
+                                        self.compile_link(
                                             attr(E::Name(v.clone()), aname),
-                                            "map")),
-                                            vec![ self.event_func(val) ]),
-                                        "handle_event"),
-                                    );
+                                            flt, Some(val)));
                                 }
                             }
                         }

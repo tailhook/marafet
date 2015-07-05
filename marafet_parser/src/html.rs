@@ -60,8 +60,8 @@ pub enum LinkDest {
 
 #[derive(Debug, Clone)]
 pub enum Link {
-    One(String, LinkDest),
-    Multi(Vec<(String, Option<String>)>, LinkDest),
+    One(String, Option<Expression>, LinkDest),
+    Multi(Vec<(String, Option<Expression>, Option<String>)>, LinkDest),
 }
 
 #[derive(Debug, Clone)]
@@ -415,8 +415,12 @@ fn multi_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     lift(Tok::OpenBrace)
     .with(sep_by::<Vec<_>, _, _>(
         lift(Tok::Ident).map(ParseToken::into_string)
-        .and(optional(lift(Tok::Colon).with(
-            lift(Tok::Ident).map(ParseToken::into_string)))),
+        .and(optional(
+            lift(Tok::Colon).with(
+                lift(Tok::Ident).map(ParseToken::into_string))))
+        .and(optional(between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
+            parser(expression))))
+        .map(|((n, a), x)| (n, x, a)),
         lift(Tok::Comma)))
     .skip(lift(Tok::CloseBrace))
     .skip(lift(Tok::Equals))
@@ -429,9 +433,11 @@ fn single_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     -> ParseResult<Link, I>
 {
     lift(Tok::Ident)
+    .and(optional(between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
+        parser(expression))))
     .skip(lift(Tok::Equals))
     .and(parser(link_dest))
-    .map(|(name, dest)| Link::One(name.into_string(), dest))
+    .map(|((name, filt), dest)| Link::One(name.into_string(), filt, dest))
     .parse_state(input)
 }
 
