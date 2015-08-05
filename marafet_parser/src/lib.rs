@@ -1,10 +1,9 @@
-extern crate parser_combinators;
+extern crate combine;
 extern crate unicode_segmentation;
 extern crate marafet_util as util;
 
-use parser_combinators::primitives::{Stream, State, Parser};
-use parser_combinators::combinator::{many, ParserExt};
-use parser_combinators::{ParseResult, parser, from_iter, optional, sep_by};
+use combine::combinator::{many, ParserExt};
+use combine::{Parser, ParseResult, parser, optional, sep_by};
 
 use self::token::{Token, ParseToken, lift};
 use self::token::TokenType::{Css, Html, Eof};
@@ -17,6 +16,11 @@ mod token;
 mod tokenizer;
 pub mod css;
 pub mod html;
+
+// I'm not sure why they should be public but compiler insists
+pub type Stream<'a> = Tokenizer<'a>;
+pub type State<'a> = combine::State<Stream<'a>>;
+pub type Result<'a, T> = combine::primitives::ParseResult<T, Stream<'a>, Token<'a>>;
 
 #[derive(Debug, Clone)]
 pub enum Block {
@@ -36,8 +40,8 @@ pub struct Ast {
     pub blocks: Vec<Block>,
 }
 
-fn import_braces<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Vec<(String, Option<String>)>, I>
+fn import_braces<'x>(input: State<'x>)
+    -> Result<'x, Vec<(String, Option<String>)>>
 {
     lift(OpenBrace).with(sep_by::<Vec<_>, _, _>(
             lift(Ident).map(ParseToken::into_string)
@@ -48,8 +52,7 @@ fn import_braces<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn import<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Block, I>
+fn import<'x>(input: State<'x>) -> Result<'x, Block>
 {
     let vars = parser(import_braces)
         .skip(lift(From)).and(lift(StrTok).map(ParseToken::unescape))
@@ -63,8 +66,7 @@ fn import<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn body<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Ast, I>
+fn body<'x>(input: State<'x>) -> Result<'x, Ast>
 {
     let css = lift(Css).with(parser(css::block));
     let html = lift(Html).with(parser(html::block));
@@ -76,23 +78,19 @@ fn body<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     }).parse_state(input);
 }
 
-pub fn parse_string(text: &str) -> Result<Ast, String> {
+pub fn parse_string(text: &str) -> ::std::result::Result<Ast, String> {
     parser(body)
-    .parse(from_iter(Tokenizer::new(text)))
-    .map_err(|x| format!("Parse error: {}", x))
+    .parse(Tokenizer::new(text))
+    .map_err(|x| format!("Parse error: {:?}", x))
     .map(|(ast, _)| ast)
 }
 
-pub fn parse_html_expr(text: &str) -> Result<html::Expression, String> {
+pub fn parse_html_expr(text: &str)
+    -> ::std::result::Result<html::Expression, String>
+{
     parser(html::expression)
-    .parse(from_iter(Tokenizer::new(text)))
-    .map_err(|x| format!("Parse error: {}", x))
+    .parse(Tokenizer::new(text))
+    .map_err(|x| format!("Parse error: {:?}", x))
     .map(|(ast, _)| ast)
 }
 
-pub fn print_tokens(text: &str) {
-    Tokenizer::new(text)
-    .inspect(|x| println!("{:?}", x))
-    .take_while(|&(ref typ, _, _)| typ != &Eof)
-    .last();
-}

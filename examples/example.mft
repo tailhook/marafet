@@ -15,5 +15,6 @@ html body:
         "Hello World!"
         "Str {s} / int {a.b:d} / float {c.d:.2f}"
         span[class="item-{num}"]
+          link keydown[ev.which == 13] = test.fuck
     code
         "print \"Hello\""

@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
-use parser_combinators::primitives::{Parser, Stream, State, SourcePosition};
-use parser_combinators::primitives::{Info};
-use parser_combinators::primitives::{ParseResult, ParseError, Error, Consumed};
+use combine::primitives::{Parser, SourcePosition, Positioner};
+use combine::primitives::{Info, ParseError, Consumed, Error};
+use combine::primitives::Stream as StreamTrait;
+
+use super::{Stream, State, Result};
 
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -59,7 +61,21 @@ pub enum TokenType {
     Eof,
 }
 
-pub type Token<'a> = (TokenType, &'a str, SourcePosition);
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Token<'a>(pub TokenType, pub &'a str, pub SourcePosition);
+
+impl<'a> Positioner for Token<'a> {
+    type Position = SourcePosition;
+    fn start() -> SourcePosition {
+        SourcePosition {
+            line: 1,
+            column: 1,
+        }
+    }
+    fn update(&self, pos: &mut SourcePosition) {
+        *pos = self.2;
+    }
+}
 
 
 pub trait ParseToken {
@@ -119,7 +135,7 @@ pub struct TokenParser<I> {
 }
 
 impl TokenType {
-    fn info(&self) -> Info {
+    fn info(&self) -> Info<Token<'static>> {
         match *self {
             TokenType::Css => Info::Borrowed("css NAME[(PARAMS..)]"),
             TokenType::Html => Info::Borrowed("html NAME[(PARAMS)]"),
@@ -174,31 +190,26 @@ impl TokenType {
     }
 }
 
-impl<'a, I: Stream<Item=Token<'a>>> Parser for TokenParser<I> {
-    type Input = I;
+impl<'a> Parser for TokenParser<Stream<'a>> {
+    type Input = Stream<'a>;
     type Output = Token<'a>;
-
-    fn parse_state(&mut self, input: State<I>) -> ParseResult<Token<'a>, I> {
-        match input.clone().uncons(|pos, &(_, _, p)| { *pos = p; }) {
-            Ok((tok, s)) => {
-                let (typ, val, pos) = tok;
-                if self.token == typ { Ok((tok, s)) }
+    fn parse_lazy<'x>(&mut self, input: State<'x>) -> Result<'x, Token<'x>> {
+        match input.input.clone().uncons() {
+            Ok((c, s)) => {
+                if c.0 == self.token { input.update(c, s) }
                 else {
-                    let mut errors = vec![
-                        Error::Expected(self.token.info())];
-                    if val.len() > 0 {
-                        errors.insert(0,
-                            Error::Unexpected(val.chars().next().unwrap()));
-                    }
-                    Err(Consumed::Empty(
-                        ParseError::from_errors(pos, errors)))
+                    Err(Consumed::Empty(ParseError::empty(input.position)))
                 }
             }
-            Err(err) => Err(err)
+            Err(err) => Err(Consumed::Empty(ParseError::new(input.position, err)))
         }
+
+    }
+    fn add_error(&mut self, error: &mut ParseError<Token<'a>>) {
+        error.errors.push(Error::Expected(self.token.info()));
     }
 }
 
-pub fn lift<'a, I: Stream<Item=Token<'a>>>(tok: TokenType) -> TokenParser<I> {
+pub fn lift<'a>(tok: TokenType) -> TokenParser<Stream<'a>> {
     return TokenParser { token: tok, ph: PhantomData };
 }

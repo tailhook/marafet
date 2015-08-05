@@ -81,11 +81,6 @@ fn main() {
         }
     };
 
-    if print_ast {
-        println!("--- Tokens ---");
-        parser::print_tokens(&body[..]);
-    }
-
     let ast = match parser::parse_string(&body[..]) {
         Ok(ast) => ast,
         Err(e) => {

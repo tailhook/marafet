@@ -10,7 +10,7 @@ version = "0.1.0"
 authors = ["paul@colomiets.name"]
 
 [dependencies]
-parser-combinators = "*"
+combine = "*"
 unicode-segmentation = "*"
 
 [lib]

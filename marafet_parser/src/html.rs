@@ -1,7 +1,6 @@
-use parser_combinators::primitives::{Stream, State, Parser};
-use parser_combinators::{ParseResult, parser};
-use parser_combinators::combinator::{optional, ParserExt, sep_by, many, many1};
-use parser_combinators::combinator::{chainl1, between, choice};
+use combine::{parser, Parser};
+use combine::combinator::{optional, ParserExt, sep_by, many, many1};
+use combine::combinator::{chainl1, between, choice};
 
 use util::join;
 
@@ -10,6 +9,7 @@ use super::parse_html_expr;
 use super::token::{Token, ParseToken};
 use super::token::TokenType as Tok;
 use super::token::lift;
+use super::{State, Result};
 
 type ChainFun = fn(Expression, Expression) -> Expression;
 
@@ -90,20 +90,18 @@ pub enum Statement {
 }
 
 
-fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Param, I>
+fn param<'x>(input: State<'x>) -> Result<'x, Param>
 {
     lift(Tok::Ident).and(optional(lift(Tok::Equals)
         .with(lift(Tok::String))))  // TODO(tailhook) more expressions
-    .map(|((_, name, _), opt)| Param {
+    .map(|(Token(_, name, _), opt)| Param {
         name: String::from(name),
         default_value: opt.map(ParseToken::unescape)
     })
     .parse_state(input)
 }
 
-fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<String, I>
+fn dash_name<'a>(input: State<'a>) -> Result<'a, String>
 {
     sep_by::<Vec<_>, _, _>(
         lift(Tok::Ident).or(lift(Tok::Number)).map(ParseToken::into_string),
@@ -112,8 +110,8 @@ fn dash_name<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn element_start<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<(String, Vec<(String, Option<Expression>)>), I>
+fn element_start<'a>(input: State<'a>)
+    -> Result<'a, (String, Vec<(String, Option<Expression>)>)>
 {
     let element_head = lift(Tok::Ident)
         .map(ParseToken::into_string)
@@ -135,8 +133,8 @@ fn element_start<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn attributes<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Option<Vec<(String, Expression)>>, I>
+fn attributes<'a>(input: State<'a>)
+    -> Result<'a, Option<Vec<(String, Expression)>>>
 {
     optional(lift(Tok::OpenBracket)
         .with(sep_by::<Vec<_>, _, _>(
@@ -151,8 +149,7 @@ fn attributes<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn element<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn element<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     parser(element_start)
     .and(parser(attributes))
@@ -222,8 +219,7 @@ fn parse_format_string(tok: Token) -> Vec<Fmt> {
     return buf;
 }
 
-fn literal<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn literal<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::String).skip(lift(Tok::Newline))
     .map(parse_format_string)
@@ -231,8 +227,7 @@ fn literal<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn call<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+fn call<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     enum Sub {
         GetAttr(String),
@@ -257,8 +252,7 @@ fn call<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
         }))
     .parse_state(input)
 }
-fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+fn dict<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     between(lift(Tok::OpenBrace), lift(Tok::CloseBrace),
         sep_by::<Vec<_>, _, _>(
@@ -270,16 +264,14 @@ fn dict<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .map(Expression::Dict)
     .parse_state(input)
 }
-fn list<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+fn list<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
         sep_by::<Vec<_>, _, _>(parser(expression), lift(Tok::Comma)))
     .map(Expression::List)
     .parse_state(input)
 }
-fn atom<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+fn atom<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     lift(Tok::Ident).map(ParseToken::into_string).map(Expression::Name)
     .or(lift(Tok::New).with(parser(expression))
@@ -308,8 +300,7 @@ fn subtract(l: Expression, r: Expression) -> Expression {
     Expression::Sub(Box::new(l), Box::new(r))
 }
 
-fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+fn sum<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     let factor = lift(Tok::Multiply).map(|_| multiply as ChainFun)
                  .or(lift(Tok::Divide).map(|_| divide as ChainFun));
@@ -321,8 +312,7 @@ fn sum<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 }
 
 
-pub fn comparison<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+pub fn comparison<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     parser(sum).and(many(choice([
         lift(Tok::Eq),
@@ -335,7 +325,7 @@ pub fn comparison<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .map(|(expr, tails): (Expression, Vec<(_, Expression)>)| {
         let mut expr = expr;
         let mut prev = expr.clone();
-        for ((tok, _, _), value) in tails.into_iter() {
+        for (Token(tok, _, _), value) in tails.into_iter() {
             let comp = match tok {
                 Tok::Eq => Comparator::Eq,
                 Tok::NotEq => Comparator::NotEq,
@@ -355,8 +345,7 @@ pub fn comparison<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-pub fn boolean<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+pub fn boolean<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     let not = parser(comparison)
         .or(lift(Tok::Not).with(parser(comparison))
@@ -368,14 +357,12 @@ pub fn boolean<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     or.parse_state(input)
 }
 
-pub fn expression<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Expression, I>
+pub fn expression<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     parser(boolean).parse_state(input)
 }
 
-fn store<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn store<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::Store)
     .with(lift(Tok::Ident).map(ParseToken::into_string))
@@ -385,8 +372,7 @@ fn store<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn let_var<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn let_var<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::Let)
     .with(lift(Tok::Ident).map(ParseToken::into_string))
@@ -396,8 +382,7 @@ fn let_var<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn link_dest<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<LinkDest, I>
+fn link_dest<'a>(input: State<'a>) -> Result<'a, LinkDest>
 {
     parser(expression)
     .and(optional(lift(Tok::ArrowRight)
@@ -409,8 +394,7 @@ fn link_dest<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn multi_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Link, I>
+fn multi_link<'a>(input: State<'a>) -> Result<'a, Link>
 {
     lift(Tok::OpenBrace)
     .with(sep_by::<Vec<_>, _, _>(
@@ -429,8 +413,7 @@ fn multi_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn single_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Link, I>
+fn single_link<'a>(input: State<'a>) -> Result<'a, Link>
 {
     lift(Tok::Ident)
     .and(optional(between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
@@ -441,8 +424,7 @@ fn single_link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn link<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::Link)
     .with(sep_by::<Vec<_>, _, _>(
@@ -453,8 +435,7 @@ fn link<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn condition<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn condition<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::If)
     .with(parser(expression))
@@ -486,8 +467,7 @@ fn condition<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn iteration<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn iteration<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::For)
     .with(lift(Tok::Ident))
@@ -502,8 +482,7 @@ fn iteration<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn output<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn output<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::Equals)
     .with(parser(expression))
@@ -512,8 +491,7 @@ fn output<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn statement<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Statement, I>
+fn statement<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     parser(element)
     .or(parser(literal))
@@ -526,8 +504,7 @@ fn statement<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn params<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Option<Vec<Param>>, I>
+fn params<'a>(input: State<'a>) -> Result<'a, Option<Vec<Param>>>
 {
     optional(lift(Tok::OpenParen)
         .with(sep_by::<Vec<_>, _, _>(parser(param), lift(Tok::Comma)))
@@ -535,8 +512,7 @@ fn params<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn events<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Option<Vec<String>>, I>
+fn events<'a>(input: State<'a>) -> Result<'a, Option<Vec<String>>>
 {
     optional(lift(Tok::Events)
         .with(sep_by::<Vec<_>, _, _>(
@@ -546,8 +522,7 @@ fn events<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-pub fn chunk<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Option<Vec<Statement>>, I>
+pub fn chunk<'a>(input: State<'a>) -> Result<'a, Option<Vec<Statement>>>
 {
     optional(
         lift(Tok::Indent)
@@ -556,8 +531,7 @@ pub fn chunk<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-pub fn block<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Block, I>
+pub fn block<'a>(input: State<'a>) -> Result<'a, Block>
 {
     lift(Tok::Ident).map(ParseToken::into_string)
     .and(parser(params))

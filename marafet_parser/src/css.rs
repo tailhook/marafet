@@ -1,13 +1,13 @@
-use parser_combinators::primitives::{Stream, State, Parser};
-use parser_combinators::{ParseResult, parser};
-use parser_combinators::combinator::{optional, ParserExt, sep_by, many};
-use parser_combinators::combinator::{between};
+use combine::{parser, Parser};
+use combine::combinator::{optional, ParserExt, sep_by, many};
+use combine::combinator::{between};
 
 use super::Block;
 use super::token::{Token, ParseToken};
 use super::token::TokenType as Tok;
 use super::token::lift;
 use util::join;
+use super::{State, Result};
 
 #[derive(Debug, Clone)]
 pub struct Selector {
@@ -29,19 +29,18 @@ pub struct Param {
     pub default_value: Option<String>,
 }
 
-fn param<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Param, I>
+fn param<'a>(input: State<'a>) -> Result<'a, Param>
 {
     lift(Tok::CssWord).and(optional(lift(Tok::Equals).with(lift(Tok::String))))
-            .map(|((_, name, _), opt)| Param {
+            .map(|(Token(_, name, _), opt)| Param {
                 name: String::from(name),
                 default_value: opt.map(|x| String::from(x.1)),
             })
     .parse_state(input)
 }
 
-fn property_value<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<String, I>
+#[allow(unconditional_recursion)]
+fn property_value<'a>(input: State<'a>) -> Result<'a, String>
 {
     // TODO(tailhook) add numbers slashes and other things
     many::<Vec<_>, _>(
@@ -60,8 +59,7 @@ fn property_value<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn selector<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Selector, I>
+fn selector<'a>(input: State<'a>) -> Result<'a, Selector>
 {
     optional(lift(Tok::CssWord).map(ParseToken::into_string))
         .and(many::<Vec<_>, _>(
@@ -77,8 +75,7 @@ fn selector<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
     .parse_state(input)
 }
 
-fn rule<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Rule, I>
+fn rule<'a>(input: State<'a>) -> Result<'a, Rule>
 {
     sep_by::<Vec<_>, _, _>(
             parser(selector),
@@ -107,8 +104,7 @@ fn rule<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
 }
 
 
-pub fn block<'a, I: Stream<Item=Token<'a>>>(input: State<I>)
-    -> ParseResult<Block, I>
+pub fn block<'a>(input: State<'a>) -> Result<'a, Block>
 {
     optional(lift(Tok::OpenParen)
         .with(sep_by::<Vec<_>, _, _>(parser(param), lift(Tok::Comma)))

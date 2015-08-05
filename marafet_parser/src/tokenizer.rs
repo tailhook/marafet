@@ -1,7 +1,7 @@
 use std::str::{Chars};
 use std::iter::Peekable;
 
-use parser_combinators::primitives::{SourcePosition};
+use combine::primitives::{SourcePosition, Stream, Error, Info};
 use unicode_segmentation::{UnicodeSegmentation, GraphemeIndices};
 
 use super::token::{Token, TokenType};
@@ -100,11 +100,10 @@ impl<'a> Tokenizer<'a> {
             mode: Mode::Normal,
         };
     }
-}
 
-impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token<'a>;
-    fn next(&mut self) -> Option<Token<'a>> {
+    fn next(&mut self)
+        -> Result<(TokenType, &'a str, SourcePosition), Error<Token<'a>>>
+    {
         'outer: loop {
             match self.iter.peek() {
                 Some(('\n', _, _, 1)) => {
@@ -146,8 +145,11 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     self.indents.pop();
                                     let nind = *self.indents.last().unwrap();
                                     if nind < indent {
-                                        // TODO(tailhook) how to report err?
-                                        return None;
+                                        // TODO(tailhook) how to report
+                                        //                position?
+                                        return Err(Error::Message(
+                                            Info::Borrowed(
+                                                "Wrong indentation level")));
                                     } else if nind == indent {
                                         self.iter = niter;  // commit if last
                                     }
@@ -157,7 +159,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                     line: line,
                                     column: col,
                                     };
-                                return Some((typ, "", pos));
+                                return Ok((typ, "", pos));
                             }
                         }
                     }
@@ -176,7 +178,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                         line: self.iter.line,
                         column: self.iter.column,
                         };
-                    return Some((TokenType::Dedent, "", pos));
+                    return Ok((TokenType::Dedent, "", pos));
                 }
                 _ => {}
             }
@@ -192,7 +194,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 continue;  // skip empty line
                             }
                             if self.braces.len() == 0 {
-                                return Some((TokenType::Newline, "\n", pos));
+                                return Ok((TokenType::Newline, "\n", pos));
                             } else {
                                 continue 'outer;
                             }
@@ -205,7 +207,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 _ => unreachable!(),
                             };
                             self.braces.push(ch);
-                            return Some((typ, &self.data[off..off+1], pos));
+                            return Ok((typ, &self.data[off..off+1], pos));
                         }
                         ')'|'}'|']' => {
                             let (typ, val) = match ch {
@@ -215,11 +217,12 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 _ => unreachable!(),
                             };
                             let br = self.braces.pop();
+                            let tok = (typ, &self.data[off..off+1], pos);
                             if Some(val) == br {
-                                return Some((typ, &self.data[off..off+1], pos));
+                                return Ok(tok);
                             } else {
-                                // TODO(tailhook) how to communicate error?
-                                return None;
+                                return Err(Error::Unexpected(
+                                    Token(tok.0, tok.1, tok.2)));
                             }
                         }
                         'a'...'z'|'A'...'Z'|'_'|'-'|'0'...'9'
@@ -246,10 +249,10 @@ impl<'a> Iterator for Tokenizer<'a> {
                             match value {
                                 "html" if column == 1 => {
                                     self.mode = Mode::Normal;
-                                    return Some((TokenType::Html, value, pos));
+                                    return Ok((TokenType::Html, value, pos));
                                 }
                                 _ => {
-                                    return Some((TokenType::CssWord,
+                                    return Ok((TokenType::CssWord,
                                                  value, pos));
                                 }
                             }
@@ -316,7 +319,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 ',' => TokenType::Comma,
                                 _ => unreachable!(),
                             };
-                            return Some((typ,
+                            return Ok((typ,
                                 &self.data[off..off+len],
                                 pos));
                         }
@@ -328,7 +331,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 }
                             }
                             if self.braces.len() == 0 {
-                                return Some((TokenType::Newline, "\n", pos));
+                                return Ok((TokenType::Newline, "\n", pos));
                             } else {
                                 continue 'outer;
                             }
@@ -352,7 +355,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 }
                             }
                             let value = &self.data[off..self.iter.offset+1];
-                            return Some((TokenType::String, value, pos));
+                            return Ok((TokenType::String, value, pos));
                         }
                         ' '|'\t' => {  // Skip whitespace
                             continue;
@@ -404,7 +407,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 "or" => TokenType::Or,
                                 _ => TokenType::Ident,
                             };
-                            return Some((tok, value, pos));
+                            return Ok((tok, value, pos));
                         }
                         '0'...'9' => {
                             let mut offset = self.data.len();
@@ -424,10 +427,12 @@ impl<'a> Iterator for Tokenizer<'a> {
                                 self.iter.next();
                             }
                             let value = &self.data[off..offset];
-                            return Some((TokenType::Number, value, pos));
+                            return Ok((TokenType::Number, value, pos));
                         }
                         _ => {
-                            return None; // Unexpected character
+                            return Err(Error::Message(Info::Owned(
+                                format!("unexpected character {:?} at {}",
+                                &self.data[off..off+1], pos))));
                         }
                     }
                 }
@@ -438,14 +443,25 @@ impl<'a> Iterator for Tokenizer<'a> {
                         };
                     match self.indents.pop() {
                         Some(level) if level > 0 => {
-                            return Some((TokenType::Dedent, "", pos));
+                            return Ok((TokenType::Dedent, "", pos));
                         }
                         _ => {
-                            return Some((TokenType::Eof, "", pos));
+                            return Ok((TokenType::Eof, "", pos));
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+impl<'a> Stream for Tokenizer<'a> {
+    type Item = Token<'a>;
+    fn uncons(mut self) -> Result<(Token<'a>, Tokenizer<'a>), Error<Token<'a>>>
+    {
+        match self.next() {
+            Ok((t, v, p)) => Ok((Token(t, v, p), self)),
+            Err(e) => Err(e),
         }
     }
 }
