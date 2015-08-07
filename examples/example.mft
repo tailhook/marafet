@@ -16,5 +16,17 @@ html body:
         "Str {s} / int {a.b:d} / float {c.d:.2f}"
         span[class="item-{num}"]
           link keydown[ev.which == 13] = test.fuck
+        ul
+          for el of ["a", "b", "c"]:
+            for ne of ["d", "e", "f"] key String(el+ "/"+ne):
+              if 1:
+                li "{el}"
+              elif 2:
+                li "{el}"
+              else:
+                li "{el}"
+        ul
+          for el of [1, 2, 3] key String(el):
+            li "{el}"
     code
         "print \"Hello\""

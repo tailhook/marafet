@@ -86,7 +86,7 @@ pub enum Statement {
     Let(String, Expression),
     Link(Vec<Link>),
     Condition(Vec<(Expression, Vec<Statement>)>, Option<Vec<Statement>>),
-    ForOf(String, Expression, Vec<Statement>),
+    ForOf(String, Expression, Option<Expression>, Vec<Statement>),
 }
 
 
@@ -473,11 +473,14 @@ fn iteration<'a>(input: State<'a>) -> Result<'a, Statement>
     .with(lift(Tok::Ident))
     .skip(lift(Tok::Of))
     .and(parser(expression))
+    .and(optional(
+        lift(Tok::Key)
+        .with(parser(expression))))
     .skip(lift(Tok::Colon))
     .skip(lift(Tok::Newline))
     .and(parser(chunk))
-    .map(|((name, array), opt_body)| Statement::ForOf(
-        name.into_string(), array,
+    .map(|(((name, array), opt_key), opt_body)| Statement::ForOf(
+        name.into_string(), array, opt_key,
         opt_body.unwrap_or(vec!())))
     .parse_state(input)
 }

@@ -396,6 +396,7 @@ impl<'a> Tokenizer<'a> {
                                 "in" => TokenType::In,
                                 "of" => TokenType::Of,
                                 "as" => TokenType::As,
+                                "key" => TokenType::Key,
                                 "else" => TokenType::Else,
                                 "events" => TokenType::Events,
                                 "store" => TokenType::Store,

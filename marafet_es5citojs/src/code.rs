@@ -12,6 +12,24 @@ use super::ast::{Code, Statement, Param, Expression};
 use super::Generator;
 
 
+fn key_num(sup: &Option<Expression>, sub: usize) -> Option<Expression> {
+    sup.as_ref().map(|k| {
+        Expression::Add(
+            Box::new(k.clone()),
+            Box::new(Expression::Str(format!(":{}", sub))))
+    })
+}
+
+fn key_join(sup: Option<Expression>, sub: &String) -> Expression {
+    sup.map(|k| {
+        Expression::Add(
+            Box::new(Expression::Add(
+                Box::new(k),
+                Box::new(Expression::Str(String::from(":"))))),
+            Box::new(Expression::Name(sub.clone())))
+    }).unwrap_or(Expression::Name(sub.clone()))
+}
+
 impl<'a, W:Write+'a> Generator<'a, W> {
 
     pub fn compile_expr(&self, expr: &Expr) -> Expression
@@ -92,29 +110,34 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         })
     }
 
-    fn statement(&self, st: &html::Statement) -> Expression {
+    fn statement(&self, st: &html::Statement, key: Option<Expression>)
+        -> Expression
+    {
         match st {
             &Element { ref name, ref classes, ref body, ref attributes } => {
-                self.element(name, classes, attributes, body)
+                self.element(name, classes, attributes, key, body)
             }
             &Stmt::Format(ref value) => {
                 self.compile_format(value)
             }
             &Output(ref expr) => {
+                // TODO(tailhook) maybe put key somehow too?
                 self.compile_expr(expr)
             }
             &Condition(ref conditions, ref fallback) => {
-                conditions.iter().rev()
+                // TODO(tailhook) maybe key should have if branch appended
+                conditions.iter().enumerate().rev()
                 .fold(fallback.as_ref()
-                    .map(|x| self.fragment(x))
+                    .map(|x| self.fragment(x, key_num(&key, conditions.len())))
                     .unwrap_or(Expression::Str(String::new())),
-                    |old, &(ref cond, ref value)| Expression::Ternary(
+                    |old, (idx, &(ref cond, ref value))| Expression::Ternary(
+                        // TODO(tailhook) maybe put key somehow too?
                         Box::new(self.compile_expr(cond)),
-                        Box::new(self.fragment(value)),
+                        Box::new(self.fragment(value, key_num(&key, idx))),
                         Box::new(old),
                     ))
             }
-            &Stmt::ForOf(ref name, ref expr, ref body) => {
+            &Stmt::ForOf(ref name, ref expr, ref subkey, ref body) => {
                 let expr = self.compile_expr(expr);
                 Expression::Call(
                     Box::new(Expression::Attr(
@@ -122,28 +145,38 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                         String::from("map"))),
                     vec![Expression::Function(None,
                         vec![Param {name: name.clone(), default_value: None}],
-                        vec![Statement::Return(self.fragment(body))])])
+                        vec![Statement::Return(self.fragment(body,
+                            Some(subkey.as_ref().map(|x| self.compile_expr(&x))
+                                 .unwrap_or(key_join(key, name)))))]
+                    )])
             }
             &Stmt::Store(_, _) => unreachable!(),  // not an actual child
             &Stmt::Link(_) => unreachable!(),  // not an actual child
             &Stmt::Let(_, _) => unreachable!(),  // not an actual child
         }
     }
-    pub fn fragment(&self, statements: &Vec<html::Statement>) -> Expression {
+    pub fn fragment(&self, statements: &Vec<html::Statement>,
+        key: Option<Expression>)
+        -> Expression
+    {
         let stmt = statements.iter().filter(|x| match x {
             &&Stmt::Store(_, _) | &&Stmt::Link(_) | &&Stmt::Let(_, _) => false,
             _ => true,
             }).collect::<Vec<_>>();
         if stmt.len() == 1 {
-            return self.statement(&stmt[0]);
+            return self.statement(&stmt[0], key);
         } else {
-            return Expression::Object(vec![(
+            let mut obj = vec![(
                 String::from("children"),
                 Expression::List(
                     stmt.iter()
-                    .map(|s| self.statement(s))
+                    .map(|s| self.statement(s, None))
                     .collect())
-                )]);
+                )];
+            if let Some(x) = key {
+                obj.insert(0, (String::from("key"), x));
+            }
+            return Expression::Object(obj);
         }
     }
     pub fn code(&self, ast: &Ast) -> Code {
@@ -159,7 +192,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
                             |v| Expression::Str(v.clone())),
                     }).collect(),
                     vec![
-                        Statement::Return(self.fragment(statements)),
+                        Statement::Return(self.fragment(statements,
+                            Some(Expression::Str(format!("{}:{}",
+                                self.block_name, name))))),
                     ]
                 ));
             }

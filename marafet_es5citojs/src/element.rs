@@ -42,6 +42,7 @@ impl<'a, W:Write+'a> Generator<'a, W> {
     pub fn element(&self, name: &String,
         classes: &Vec<(String, Option<Expr>)>,
         attributes: &Vec<(String, Expr)>,
+        key: Option<Expression>,
         body: &Vec<Stmt>)
         -> Expression
     {
@@ -51,6 +52,9 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         let mut properties = vec![
                 (String::from("tag"), Expression::Str(name.clone())),
         ];
+        if let Some(key) = key {
+            properties.push((String::from("key"), key));
+        }
         let mut statements = vec![];
         let mut events = HashMap::new();
         for item in body.iter() {
@@ -140,7 +144,7 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         }
         if body.len() > 0 {
             properties.push(
-                (String::from("children"), self.fragment(&body)));
+                (String::from("children"), self.fragment(&body, None)));
         }
         if events.len() > 0 {
             properties.push( (String::from("events"), Expression::Object(
