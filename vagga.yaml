@@ -1,9 +1,14 @@
 commands:
 
   make: !Command
-    description: Build cantal binaries and javascript in ubuntu container
+    description: Build marafet binaries in ubuntu container
     container: ubuntu
     run: [make]
+
+  cargo: !Command
+    description: Run any cargo command
+    container: ubuntu
+    run: [cargo]
 
 containers:
 
@@ -15,7 +20,7 @@ containers:
 
     - !BuildDeps [ca-certificates, build-essential]
     - !TarInstall
-      url: "http://static.rust-lang.org/dist/rust-beta-x86_64-unknown-linux-gnu.tar.gz"
+      url: "http://static.rust-lang.org/dist/rust-1.2.0-x86_64-unknown-linux-gnu.tar.gz"
       script: "./install.sh --prefix=/usr --components=rustc,cargo"
     environ:
       HOME: /work/run
