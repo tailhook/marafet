@@ -52,9 +52,6 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         let mut properties = vec![
                 (String::from("tag"), Expression::Str(name.clone())),
         ];
-        if let Some(key) = key {
-            properties.push((String::from("key"), key));
-        }
         let mut statements = vec![];
         let mut events = HashMap::new();
         for item in body.iter() {
@@ -160,13 +157,27 @@ impl<'a, W:Write+'a> Generator<'a, W> {
         if statements.len() > 0 {
             statements.push(
                 Statement::Return(Expression::Object(properties)));
-            return Expression::Function(None,
+            let func = Expression::Function(None,
                 vec![Param {
                     name: String::from("old_node"),
                     default_value: None,
                 }],
                 statements);
+            if let Some(key) = key {
+                // If there is a key, we must turn function into fragment,
+                // because it's impossible to find out old_node before knowing
+                // the key
+                return Expression::Object(vec![
+                    ("key".to_string(), key),
+                    ("children".to_string(), func),
+                    ].into_iter().collect())
+            } else {
+                return func
+            }
         } else {
+            if let Some(key) = key {
+                properties.push((String::from("key"), key));
+            }
             return Expression::Object(properties);
         }
     }
