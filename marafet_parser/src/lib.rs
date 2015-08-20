@@ -5,7 +5,7 @@ extern crate marafet_util as util;
 use combine::combinator::{many, ParserExt};
 use combine::{Parser, ParseResult, parser, optional, sep_by};
 
-use self::token::{Token, ParseToken, lift};
+use self::token::{ParseToken, lift};
 use self::token::TokenType::{Css, Html, Eof};
 use self::token::TokenType::{Import, From, Comma, Newline};
 use self::token::TokenType::{OpenBrace, CloseBrace, Ident, As};
@@ -17,10 +17,14 @@ mod tokenizer;
 pub mod css;
 pub mod html;
 
+#[derive(PartialEq, Eq, Clone, Debug)]
+struct NoOpRange;
+
 // I'm not sure why they should be public but compiler insists
 pub type Stream<'a> = Tokenizer<'a>;
 pub type State<'a> = combine::State<Stream<'a>>;
-pub type Result<'a, T> = combine::primitives::ParseResult<T, Stream<'a>, Token<'a>>;
+pub type Result<'a, T> = combine::primitives::ParseResult<T, Stream<'a>>;
+pub type Range = NoOpRange;
 
 #[derive(Debug, Clone)]
 pub enum Block {

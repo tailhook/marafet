@@ -4,7 +4,7 @@ use combine::primitives::{Parser, SourcePosition, Positioner};
 use combine::primitives::{Info, ParseError, Consumed, Error};
 use combine::primitives::Stream as StreamTrait;
 
-use super::{Stream, State, Result};
+use super::{Stream, State, Result, Range};
 
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -78,6 +78,16 @@ impl<'a> Positioner for Token<'a> {
     }
 }
 
+impl<'a> Positioner for Range {
+    type Position = SourcePosition;
+    fn start() -> SourcePosition {
+        unreachable!();
+    }
+    fn update(&self, _pos: &mut SourcePosition) {
+        unreachable!();
+    }
+}
+
 
 pub trait ParseToken {
     fn into_string(self) -> String;
@@ -136,7 +146,7 @@ pub struct TokenParser<I> {
 }
 
 impl TokenType {
-    fn info(&self) -> Info<Token<'static>> {
+    fn info(&self) -> Info<Token<'static>, Range> {
         match *self {
             TokenType::Css => Info::Borrowed("css NAME[(PARAMS..)]"),
             TokenType::Html => Info::Borrowed("html NAME[(PARAMS)]"),
@@ -207,7 +217,7 @@ impl<'a> Parser for TokenParser<Stream<'a>> {
         }
 
     }
-    fn add_error(&mut self, error: &mut ParseError<Token<'a>>) {
+    fn add_error(&mut self, error: &mut ParseError<Stream<'a>>) {
         error.errors.push(Error::Expected(self.token.info()));
     }
 }
