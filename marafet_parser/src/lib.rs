@@ -3,7 +3,7 @@ extern crate unicode_segmentation;
 extern crate marafet_util as util;
 
 use combine::combinator::{many, ParserExt};
-use combine::{Parser, ParseResult, parser, optional, sep_by};
+use combine::{Parser, ParseResult, parser, optional, sep_end_by};
 
 use self::token::{ParseToken, lift};
 use self::token::TokenType::{Css, Html, Eof};
@@ -47,7 +47,7 @@ pub struct Ast {
 fn import_braces<'x>(input: State<'x>)
     -> Result<'x, Vec<(String, Option<String>)>>
 {
-    lift(OpenBrace).with(sep_by::<Vec<_>, _, _>(
+    lift(OpenBrace).with(sep_end_by::<Vec<_>, _, _>(
             lift(Ident).map(ParseToken::into_string)
             .and(optional(lift(As).with(lift(Ident)
                                         .map(ParseToken::into_string)))),

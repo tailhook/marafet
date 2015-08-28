@@ -1,6 +1,6 @@
 use combine::{parser, Parser};
 use combine::combinator::{optional, ParserExt, sep_by, many, many1};
-use combine::combinator::{chainl1, between, choice};
+use combine::combinator::{chainl1, between, choice, sep_end_by};
 
 use util::join;
 
@@ -137,7 +137,7 @@ fn attributes<'a>(input: State<'a>)
     -> Result<'a, Option<Vec<(String, Expression)>>>
 {
     optional(lift(Tok::OpenBracket)
-        .with(sep_by::<Vec<_>, _, _>(
+        .with(sep_end_by::<Vec<_>, _, _>(
             parser(dash_name)
                 .skip(lift(Tok::Equals))
                 .and(lift(Tok::String)
@@ -241,7 +241,7 @@ fn call<'a>(input: State<'a>) -> Result<'a, Expression>
         .or(between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
                     parser(expression)).map(Sub::GetItem))
         .or(between(lift(Tok::OpenParen), lift(Tok::CloseParen),
-                    sep_by::<Vec<_>, _, _>(parser(expression),
+                    sep_end_by::<Vec<_>, _, _>(parser(expression),
                                            lift(Tok::Comma))
                     .map(Sub::Call)))))
     .map(|(expr, suffixes)|
@@ -255,7 +255,7 @@ fn call<'a>(input: State<'a>) -> Result<'a, Expression>
 fn dict<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     between(lift(Tok::OpenBrace), lift(Tok::CloseBrace),
-        sep_by::<Vec<_>, _, _>(
+        sep_end_by::<Vec<_>, _, _>(
             lift(Tok::String).map(ParseToken::unescape)
             .or(lift(Tok::Ident).map(ParseToken::into_string))
            .skip(lift(Tok::Colon))
@@ -267,7 +267,7 @@ fn dict<'a>(input: State<'a>) -> Result<'a, Expression>
 fn list<'a>(input: State<'a>) -> Result<'a, Expression>
 {
     between(lift(Tok::OpenBracket), lift(Tok::CloseBracket),
-        sep_by::<Vec<_>, _, _>(parser(expression), lift(Tok::Comma)))
+        sep_end_by::<Vec<_>, _, _>(parser(expression), lift(Tok::Comma)))
     .map(Expression::List)
     .parse_state(input)
 }
@@ -397,7 +397,7 @@ fn link_dest<'a>(input: State<'a>) -> Result<'a, LinkDest>
 fn multi_link<'a>(input: State<'a>) -> Result<'a, Link>
 {
     lift(Tok::OpenBrace)
-    .with(sep_by::<Vec<_>, _, _>(
+    .with(sep_end_by::<Vec<_>, _, _>(
         lift(Tok::Ident).map(ParseToken::into_string)
         .and(optional(
             lift(Tok::Colon).with(
@@ -427,7 +427,7 @@ fn single_link<'a>(input: State<'a>) -> Result<'a, Link>
 fn link<'a>(input: State<'a>) -> Result<'a, Statement>
 {
     lift(Tok::Link)
-    .with(sep_by::<Vec<_>, _, _>(
+    .with(sep_end_by::<Vec<_>, _, _>(
         parser(single_link).or(parser(multi_link)),
         lift(Tok::Comma)))
     .skip(lift(Tok::Newline))
@@ -510,7 +510,7 @@ fn statement<'a>(input: State<'a>) -> Result<'a, Statement>
 fn params<'a>(input: State<'a>) -> Result<'a, Option<Vec<Param>>>
 {
     optional(lift(Tok::OpenParen)
-        .with(sep_by::<Vec<_>, _, _>(parser(param), lift(Tok::Comma)))
+        .with(sep_end_by::<Vec<_>, _, _>(parser(param), lift(Tok::Comma)))
         .skip(lift(Tok::CloseParen)))
     .parse_state(input)
 }
@@ -518,7 +518,7 @@ fn params<'a>(input: State<'a>) -> Result<'a, Option<Vec<Param>>>
 fn events<'a>(input: State<'a>) -> Result<'a, Option<Vec<String>>>
 {
     optional(lift(Tok::Events)
-        .with(sep_by::<Vec<_>, _, _>(
+        .with(sep_end_by::<Vec<_>, _, _>(
             lift(Tok::Ident).map(ParseToken::into_string),
             lift(Tok::Comma),
         )))

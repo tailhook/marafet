@@ -18,7 +18,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "combine"
 version = "1.0.0-beta.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+git://github.com/Marwes/combine#7ae8d32a592f8042ef09fac8758ae5c483116519"
 
 [[package]]
 name = "marafet_css"
@@ -40,7 +40,7 @@ dependencies = [
 name = "marafet_parser"
 version = "0.1.0"
 dependencies = [
- "combine 1.0.0-beta.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "combine 1.0.0-beta.3 (git+git://github.com/Marwes/combine)",
  "marafet_util 0.1.0",
  "unicode-segmentation 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
