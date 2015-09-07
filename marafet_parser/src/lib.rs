@@ -17,14 +17,10 @@ mod tokenizer;
 pub mod css;
 pub mod html;
 
-#[derive(PartialEq, Eq, Clone, Debug)]
-struct NoOpRange;
-
 // I'm not sure why they should be public but compiler insists
 pub type Stream<'a> = Tokenizer<'a>;
 pub type State<'a> = combine::State<Stream<'a>>;
 pub type Result<'a, T> = combine::primitives::ParseResult<T, Stream<'a>>;
-pub type Range = NoOpRange;
 
 #[derive(Debug, Clone)]
 pub enum Block {

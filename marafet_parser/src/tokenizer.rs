@@ -5,7 +5,6 @@ use combine::primitives::{SourcePosition, Stream, Error, Info};
 use unicode_segmentation::{UnicodeSegmentation, GraphemeIndices};
 
 use super::token::{Token, TokenType};
-use Range;
 
 #[derive(Clone)]
 struct CodeIter<'a> {
@@ -103,7 +102,8 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn next(&mut self)
-        -> Result<(TokenType, &'a str, SourcePosition), Error<Token<'a>, Range>>
+        -> Result<(TokenType, &'a str, SourcePosition),
+                  Error<Token<'a>, Token<'a>>>
     {
         'outer: loop {
             match self.iter.peek() {
@@ -459,9 +459,9 @@ impl<'a> Tokenizer<'a> {
 
 impl<'a> Stream for Tokenizer<'a> {
     type Item = Token<'a>;
-    type Range = Range;
+    type Range = Token<'a>;
     fn uncons(mut self)
-        -> Result<(Token<'a>, Tokenizer<'a>), Error<Token<'a>, Range>>
+        -> Result<(Token<'a>, Tokenizer<'a>), Error<Token<'a>, Token<'a>>>
     {
         match self.next() {
             Ok((t, v, p)) => Ok((Token(t, v, p), self)),

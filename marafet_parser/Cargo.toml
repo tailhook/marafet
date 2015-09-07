@@ -10,7 +10,7 @@ version = "0.1.0"
 authors = ["paul@colomiets.name"]
 
 [dependencies]
-combine = { git = "git://github.com/Marwes/combine" }
+combine = "1.0.0"
 unicode-segmentation = "*"
 
 [lib]
